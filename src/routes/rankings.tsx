@@ -35,12 +35,15 @@ function RankingsPage() {
     if (!data) return null;
     if (moduleFilter === "all") return data.ranks;
     const d = data.data;
-    return computeRankings({
-      standings: d.standings.filter((s) => s.module === moduleFilter),
-      continental: moduleFilter === "continental" ? d.continental : [],
-      coaches: d.coaches.filter((c) => c.module === moduleFilter),
-      clubCountry: d.clubCountry,
-    });
+    return computeRankings(
+      {
+        standings: d.standings.filter((s) => s.module === moduleFilter),
+        continental: moduleFilter === "continental" ? d.continental : [],
+        coaches: d.coaches.filter((c) => c.module === moduleFilter),
+        clubCountry: d.clubCountry,
+      },
+      data.config,
+    );
   }, [data, moduleFilter]);
 
   if (isLoading) {
