@@ -172,7 +172,7 @@ export async function fetchAllData(): Promise<AllData> {
   });
 
   const [{ data: standings }, { data: continental }, { data: coachAssign }] = await Promise.all([
-    supabase.from("standings").select("season_id,module,division_num,position,club_name,is_champion"),
+    supabase.from("standings").select("season_id,module,division_num,position,club_name,is_champion,info"),
     supabase.from("continental_results").select("season_id,competition,team1,team2,winner_club_id"),
     supabase.from("coach_assignments").select("season_id,module,coach_name,club_name"),
   ]);
@@ -183,6 +183,11 @@ export async function fetchAllData(): Promise<AllData> {
   const { data: clubIds } = await supabase.from("clubs").select("id,name");
   (clubIds ?? []).forEach((c) => clubIdName.set(c.id, c.name));
 
+  // coach nationality lookup (latest known)
+  const { data: coachNat } = await supabase.from("coaches").select("name,nationality");
+  const coachNatMap = new Map<string, string | null>();
+  (coachNat ?? []).forEach((c) => { if (c.nationality) coachNatMap.set(c.name, c.nationality); });
+
   const standingRows: StandingRow[] = (standings ?? []).map((s) => ({
     season_year: seasonMap.get(s.season_id) ?? 0,
     module: s.module,
@@ -190,6 +195,7 @@ export async function fetchAllData(): Promise<AllData> {
     position: s.position,
     club_name: s.club_name,
     is_champion: s.is_champion,
+    info: s.info,
   }));
   const continentalRows: ContinentalRow[] = (continental ?? []).map((c) => ({
     season_year: seasonMap.get(c.season_id) ?? 0,
@@ -202,7 +208,7 @@ export async function fetchAllData(): Promise<AllData> {
     season_year: seasonMap.get(c.season_id) ?? 0,
     module: c.module,
     name: c.coach_name,
-    nationality: null,
+    nationality: coachNatMap.get(c.coach_name) ?? null,
     club_name: c.club_name,
   }));
 
