@@ -6,7 +6,8 @@ async function chunkInsert(table: string, rows: Record<string, unknown>[]) {
   const size = 500;
   for (let i = 0; i < rows.length; i += size) {
     const slice = rows.slice(i, i + size);
-    const { error } = await supabase.from(table).insert(slice);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabase.from(table) as any).insert(slice);
     if (error) throw new Error(`${table}: ${error.message}`);
   }
 }
