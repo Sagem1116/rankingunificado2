@@ -176,6 +176,7 @@ export function parseWorkbook(buffer: ArrayBuffer, filename = ""): ParseResult {
     standings: [],
     coaches: [],
     continental: [],
+    players: [],
   };
 
   // --- Equipas_Pais (superleague) ---
