@@ -76,7 +76,7 @@ export interface ConfigRow {
   value: number;
 }
 
-export function configToRows(profileId: string, cfg: FmConfig): Omit<ConfigRow, "profile_id"> & { profile_id: string }[] | ConfigRow[] {
+export function configToRows(profileId: string, cfg: FmConfig): ConfigRow[] {
   const rows: ConfigRow[] = [];
   for (const [k, v] of Object.entries(cfg.positionPoints)) rows.push({ profile_id: profileId, category: "position", key: k, value: v });
   for (const [k, v] of Object.entries(cfg.divisionWeights)) rows.push({ profile_id: profileId, category: "division", key: k, value: v });
