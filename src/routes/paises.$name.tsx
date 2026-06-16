@@ -24,7 +24,7 @@ function Stat({ label, value }: { label: string; value: string | number }) {
 function CountryProfilePage() {
   const { name } = Route.useParams();
   const { data, isLoading } = useRankings();
-  const profile = useMemo(() => (data ? buildCountryProfile(data.data, name) : null), [data, name]);
+  const profile = useMemo(() => (data ? buildCountryProfile(data.data, name, data.config) : null), [data, name]);
 
   if (isLoading) {
     return (
