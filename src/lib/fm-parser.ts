@@ -163,7 +163,7 @@ export function parseWorkbook(buffer: ArrayBuffer, filename = ""): ParseResult {
   } catch {
     return {
       kind: "national",
-      data: { teamCountry: [], divisionWeights: [], standings: [], coaches: [], continental: [] },
+      data: { teamCountry: [], divisionWeights: [], standings: [], coaches: [], continental: [], players: [] },
       messages: [{ level: "red", text: "✖ Ficheiro corrompido ou ilegível" }],
       blocked: true,
     };
