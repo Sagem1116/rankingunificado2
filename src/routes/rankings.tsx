@@ -1,12 +1,22 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { Loader2, Trophy } from "lucide-react";
+import { Loader2, Trophy, FileSpreadsheet, FileText } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Link } from "@tanstack/react-router";
 import { useRankings } from "@/lib/useRankings";
 import { rankBy, computeRankings, type RankingEntry } from "@/lib/fm-rankings";
+import { exportRankingsExcel, exportRankingsPDF, type ExportSection } from "@/lib/fm-export";
+import type { ComputeResult } from "@/lib/fm-rankings";
+
+function buildSections(ranks: ComputeResult, mode: "weighted" | "raw"): ExportSection[] {
+  return [
+    { title: "Clubes", entries: rankBy(ranks.clubs, mode), mode },
+    { title: "Treinadores", entries: rankBy(ranks.coaches, mode), mode },
+    { title: "Paises", entries: rankBy(ranks.countries, mode), mode },
+  ];
+}
 
 export const Route = createFileRoute("/rankings")({
   head: () => ({
@@ -87,6 +97,14 @@ function RankingsPage() {
             {f.label}
           </Button>
         ))}
+        <div className="ml-auto flex gap-2">
+          <Button size="sm" variant="outline" onClick={() => exportRankingsExcel(buildSections(ranks, mode))}>
+            <FileSpreadsheet className="size-4" /> Excel
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => exportRankingsPDF(buildSections(ranks, mode), "FM World Rankings")}>
+            <FileText className="size-4" /> PDF
+          </Button>
+        </div>
       </div>
 
       <Tabs defaultValue="clubs">
