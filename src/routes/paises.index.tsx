@@ -4,6 +4,7 @@ import { Loader2, Globe2, Search } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useRankings } from "@/lib/useRankings";
+import { useEntrySort, SortableTh } from "@/components/SortableTh";
 
 export const Route = createFileRoute("/paises/")({
   head: () => ({
@@ -24,6 +25,7 @@ function PaisesPage() {
     const term = q.trim().toLowerCase();
     return term ? countries.filter((c) => c.name.toLowerCase().includes(term)) : countries;
   }, [data, q]);
+  const { sorted, sortKey, setSortKey } = useEntrySort(list, "weighted");
 
   if (isLoading) {
     return (
@@ -55,12 +57,12 @@ function PaisesPage() {
               <tr className="border-b border-border text-muted-foreground text-xs uppercase">
                 <th className="text-left p-3 w-12">#</th>
                 <th className="text-left p-3">País</th>
-                <th className="text-right p-3">Títulos</th>
-                <th className="text-right p-3">Pontos</th>
+                <SortableTh label="Títulos" active={sortKey === "titles"} onClick={() => setSortKey("titles")} className="text-right" />
+                <SortableTh label="Pontos" active={sortKey === "points"} onClick={() => setSortKey("points")} className="text-right" />
               </tr>
             </thead>
             <tbody>
-              {list.map((e, i) => (
+              {sorted.map((e, i) => (
                 <tr key={e.name} className="border-b border-border/50 hover:bg-muted/50 transition-colors">
                   <td className={`p-3 font-bold ${i < 3 ? "text-gold" : "text-muted-foreground"}`}>{i + 1}</td>
                   <td className="p-3 font-medium">
