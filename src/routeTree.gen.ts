@@ -17,6 +17,8 @@ import { Route as HallOfFameRouteImport } from './routes/hall-of-fame'
 import { Route as ConfiguracaoRouteImport } from './routes/configuracao'
 import { Route as ClubesRouteImport } from './routes/clubes'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as TreinadoresNameRouteImport } from './routes/treinadores.$name'
+import { Route as PaisesNameRouteImport } from './routes/paises.$name'
 import { Route as ClubesNameRouteImport } from './routes/clubes.$name'
 
 const TreinadoresRoute = TreinadoresRouteImport.update({
@@ -59,6 +61,16 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TreinadoresNameRoute = TreinadoresNameRouteImport.update({
+  id: '/$name',
+  path: '/$name',
+  getParentRoute: () => TreinadoresRoute,
+} as any)
+const PaisesNameRoute = PaisesNameRouteImport.update({
+  id: '/$name',
+  path: '/$name',
+  getParentRoute: () => PaisesRoute,
+} as any)
 const ClubesNameRoute = ClubesNameRouteImport.update({
   id: '/$name',
   path: '/$name',
@@ -71,10 +83,12 @@ export interface FileRoutesByFullPath {
   '/configuracao': typeof ConfiguracaoRoute
   '/hall-of-fame': typeof HallOfFameRoute
   '/importar': typeof ImportarRoute
-  '/paises': typeof PaisesRoute
+  '/paises': typeof PaisesRouteWithChildren
   '/rankings': typeof RankingsRoute
-  '/treinadores': typeof TreinadoresRoute
+  '/treinadores': typeof TreinadoresRouteWithChildren
   '/clubes/$name': typeof ClubesNameRoute
+  '/paises/$name': typeof PaisesNameRoute
+  '/treinadores/$name': typeof TreinadoresNameRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -82,10 +96,12 @@ export interface FileRoutesByTo {
   '/configuracao': typeof ConfiguracaoRoute
   '/hall-of-fame': typeof HallOfFameRoute
   '/importar': typeof ImportarRoute
-  '/paises': typeof PaisesRoute
+  '/paises': typeof PaisesRouteWithChildren
   '/rankings': typeof RankingsRoute
-  '/treinadores': typeof TreinadoresRoute
+  '/treinadores': typeof TreinadoresRouteWithChildren
   '/clubes/$name': typeof ClubesNameRoute
+  '/paises/$name': typeof PaisesNameRoute
+  '/treinadores/$name': typeof TreinadoresNameRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -94,10 +110,12 @@ export interface FileRoutesById {
   '/configuracao': typeof ConfiguracaoRoute
   '/hall-of-fame': typeof HallOfFameRoute
   '/importar': typeof ImportarRoute
-  '/paises': typeof PaisesRoute
+  '/paises': typeof PaisesRouteWithChildren
   '/rankings': typeof RankingsRoute
-  '/treinadores': typeof TreinadoresRoute
+  '/treinadores': typeof TreinadoresRouteWithChildren
   '/clubes/$name': typeof ClubesNameRoute
+  '/paises/$name': typeof PaisesNameRoute
+  '/treinadores/$name': typeof TreinadoresNameRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -111,6 +129,8 @@ export interface FileRouteTypes {
     | '/rankings'
     | '/treinadores'
     | '/clubes/$name'
+    | '/paises/$name'
+    | '/treinadores/$name'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -122,6 +142,8 @@ export interface FileRouteTypes {
     | '/rankings'
     | '/treinadores'
     | '/clubes/$name'
+    | '/paises/$name'
+    | '/treinadores/$name'
   id:
     | '__root__'
     | '/'
@@ -133,6 +155,8 @@ export interface FileRouteTypes {
     | '/rankings'
     | '/treinadores'
     | '/clubes/$name'
+    | '/paises/$name'
+    | '/treinadores/$name'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -141,9 +165,9 @@ export interface RootRouteChildren {
   ConfiguracaoRoute: typeof ConfiguracaoRoute
   HallOfFameRoute: typeof HallOfFameRoute
   ImportarRoute: typeof ImportarRoute
-  PaisesRoute: typeof PaisesRoute
+  PaisesRoute: typeof PaisesRouteWithChildren
   RankingsRoute: typeof RankingsRoute
-  TreinadoresRoute: typeof TreinadoresRoute
+  TreinadoresRoute: typeof TreinadoresRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
@@ -204,6 +228,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/treinadores/$name': {
+      id: '/treinadores/$name'
+      path: '/$name'
+      fullPath: '/treinadores/$name'
+      preLoaderRoute: typeof TreinadoresNameRouteImport
+      parentRoute: typeof TreinadoresRoute
+    }
+    '/paises/$name': {
+      id: '/paises/$name'
+      path: '/$name'
+      fullPath: '/paises/$name'
+      preLoaderRoute: typeof PaisesNameRouteImport
+      parentRoute: typeof PaisesRoute
+    }
     '/clubes/$name': {
       id: '/clubes/$name'
       path: '/$name'
@@ -225,15 +263,38 @@ const ClubesRouteChildren: ClubesRouteChildren = {
 const ClubesRouteWithChildren =
   ClubesRoute._addFileChildren(ClubesRouteChildren)
 
+interface PaisesRouteChildren {
+  PaisesNameRoute: typeof PaisesNameRoute
+}
+
+const PaisesRouteChildren: PaisesRouteChildren = {
+  PaisesNameRoute: PaisesNameRoute,
+}
+
+const PaisesRouteWithChildren =
+  PaisesRoute._addFileChildren(PaisesRouteChildren)
+
+interface TreinadoresRouteChildren {
+  TreinadoresNameRoute: typeof TreinadoresNameRoute
+}
+
+const TreinadoresRouteChildren: TreinadoresRouteChildren = {
+  TreinadoresNameRoute: TreinadoresNameRoute,
+}
+
+const TreinadoresRouteWithChildren = TreinadoresRoute._addFileChildren(
+  TreinadoresRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ClubesRoute: ClubesRouteWithChildren,
   ConfiguracaoRoute: ConfiguracaoRoute,
   HallOfFameRoute: HallOfFameRoute,
   ImportarRoute: ImportarRoute,
-  PaisesRoute: PaisesRoute,
+  PaisesRoute: PaisesRouteWithChildren,
   RankingsRoute: RankingsRoute,
-  TreinadoresRoute: TreinadoresRoute,
+  TreinadoresRoute: TreinadoresRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
