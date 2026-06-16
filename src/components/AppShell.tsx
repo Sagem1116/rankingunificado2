@@ -80,7 +80,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                     : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-foreground",
                 )}
               >
-                <Icon className="size-4 shrink-0" />
+                <Icon className={cn("size-4 shrink-0", active && "text-gold")} />
                 {item.label}
               </Link>
             );
@@ -102,7 +102,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                     : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-foreground",
                 )}
               >
-                <Icon className="size-4 shrink-0" />
+                <Icon className={cn("size-4 shrink-0", active && "text-gold")} />
                 {item.label}
               </Link>
             );
@@ -124,7 +124,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                     : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-foreground",
                 )}
               >
-                <Icon className="size-4 shrink-0" />
+                <Icon className={cn("size-4 shrink-0", active && "text-gold")} />
                 {item.label}
               </Link>
             );
