@@ -24,6 +24,8 @@ import { Route as TreinadoresNameRouteImport } from './routes/treinadores.$name'
 import { Route as SuperLeagueTreinadorCampeoesRouteImport } from './routes/super-league.treinador-campeoes'
 import { Route as SuperLeaguePlayOffTreinadoresRouteImport } from './routes/super-league.play-off-treinadores'
 import { Route as SuperLeaguePlayOffClubesRouteImport } from './routes/super-league.play-off-clubes'
+import { Route as SuperLeagueJogadoresDivisoesRouteImport } from './routes/super-league.jogadores-divisoes'
+import { Route as SuperLeagueJogadoresClubesRouteImport } from './routes/super-league.jogadores-clubes'
 import { Route as SuperLeagueCampeoesRouteImport } from './routes/super-league.campeoes'
 import { Route as PaisesNameRouteImport } from './routes/paises.$name'
 import { Route as ClubesNameRouteImport } from './routes/clubes.$name'
@@ -106,6 +108,18 @@ const SuperLeaguePlayOffClubesRoute =
     path: '/super-league/play-off-clubes',
     getParentRoute: () => rootRouteImport,
   } as any)
+const SuperLeagueJogadoresDivisoesRoute =
+  SuperLeagueJogadoresDivisoesRouteImport.update({
+    id: '/super-league/jogadores-divisoes',
+    path: '/super-league/jogadores-divisoes',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const SuperLeagueJogadoresClubesRoute =
+  SuperLeagueJogadoresClubesRouteImport.update({
+    id: '/super-league/jogadores-clubes',
+    path: '/super-league/jogadores-clubes',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const SuperLeagueCampeoesRoute = SuperLeagueCampeoesRouteImport.update({
   id: '/super-league/campeoes',
   path: '/super-league/campeoes',
@@ -134,6 +148,8 @@ export interface FileRoutesByFullPath {
   '/clubes/$name': typeof ClubesNameRoute
   '/paises/$name': typeof PaisesNameRoute
   '/super-league/campeoes': typeof SuperLeagueCampeoesRoute
+  '/super-league/jogadores-clubes': typeof SuperLeagueJogadoresClubesRoute
+  '/super-league/jogadores-divisoes': typeof SuperLeagueJogadoresDivisoesRoute
   '/super-league/play-off-clubes': typeof SuperLeaguePlayOffClubesRoute
   '/super-league/play-off-treinadores': typeof SuperLeaguePlayOffTreinadoresRoute
   '/super-league/treinador-campeoes': typeof SuperLeagueTreinadorCampeoesRoute
@@ -151,6 +167,8 @@ export interface FileRoutesByTo {
   '/clubes/$name': typeof ClubesNameRoute
   '/paises/$name': typeof PaisesNameRoute
   '/super-league/campeoes': typeof SuperLeagueCampeoesRoute
+  '/super-league/jogadores-clubes': typeof SuperLeagueJogadoresClubesRoute
+  '/super-league/jogadores-divisoes': typeof SuperLeagueJogadoresDivisoesRoute
   '/super-league/play-off-clubes': typeof SuperLeaguePlayOffClubesRoute
   '/super-league/play-off-treinadores': typeof SuperLeaguePlayOffTreinadoresRoute
   '/super-league/treinador-campeoes': typeof SuperLeagueTreinadorCampeoesRoute
@@ -172,6 +190,8 @@ export interface FileRoutesById {
   '/clubes/$name': typeof ClubesNameRoute
   '/paises/$name': typeof PaisesNameRoute
   '/super-league/campeoes': typeof SuperLeagueCampeoesRoute
+  '/super-league/jogadores-clubes': typeof SuperLeagueJogadoresClubesRoute
+  '/super-league/jogadores-divisoes': typeof SuperLeagueJogadoresDivisoesRoute
   '/super-league/play-off-clubes': typeof SuperLeaguePlayOffClubesRoute
   '/super-league/play-off-treinadores': typeof SuperLeaguePlayOffTreinadoresRoute
   '/super-league/treinador-campeoes': typeof SuperLeagueTreinadorCampeoesRoute
@@ -194,6 +214,8 @@ export interface FileRouteTypes {
     | '/clubes/$name'
     | '/paises/$name'
     | '/super-league/campeoes'
+    | '/super-league/jogadores-clubes'
+    | '/super-league/jogadores-divisoes'
     | '/super-league/play-off-clubes'
     | '/super-league/play-off-treinadores'
     | '/super-league/treinador-campeoes'
@@ -211,6 +233,8 @@ export interface FileRouteTypes {
     | '/clubes/$name'
     | '/paises/$name'
     | '/super-league/campeoes'
+    | '/super-league/jogadores-clubes'
+    | '/super-league/jogadores-divisoes'
     | '/super-league/play-off-clubes'
     | '/super-league/play-off-treinadores'
     | '/super-league/treinador-campeoes'
@@ -231,6 +255,8 @@ export interface FileRouteTypes {
     | '/clubes/$name'
     | '/paises/$name'
     | '/super-league/campeoes'
+    | '/super-league/jogadores-clubes'
+    | '/super-league/jogadores-divisoes'
     | '/super-league/play-off-clubes'
     | '/super-league/play-off-treinadores'
     | '/super-league/treinador-campeoes'
@@ -250,6 +276,8 @@ export interface RootRouteChildren {
   RankingsRoute: typeof RankingsRoute
   TreinadoresRoute: typeof TreinadoresRouteWithChildren
   SuperLeagueCampeoesRoute: typeof SuperLeagueCampeoesRoute
+  SuperLeagueJogadoresClubesRoute: typeof SuperLeagueJogadoresClubesRoute
+  SuperLeagueJogadoresDivisoesRoute: typeof SuperLeagueJogadoresDivisoesRoute
   SuperLeaguePlayOffClubesRoute: typeof SuperLeaguePlayOffClubesRoute
   SuperLeaguePlayOffTreinadoresRoute: typeof SuperLeaguePlayOffTreinadoresRoute
   SuperLeagueTreinadorCampeoesRoute: typeof SuperLeagueTreinadorCampeoesRoute
@@ -362,6 +390,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SuperLeaguePlayOffClubesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/super-league/jogadores-divisoes': {
+      id: '/super-league/jogadores-divisoes'
+      path: '/super-league/jogadores-divisoes'
+      fullPath: '/super-league/jogadores-divisoes'
+      preLoaderRoute: typeof SuperLeagueJogadoresDivisoesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/super-league/jogadores-clubes': {
+      id: '/super-league/jogadores-clubes'
+      path: '/super-league/jogadores-clubes'
+      fullPath: '/super-league/jogadores-clubes'
+      preLoaderRoute: typeof SuperLeagueJogadoresClubesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/super-league/campeoes': {
       id: '/super-league/campeoes'
       path: '/super-league/campeoes'
@@ -436,6 +478,8 @@ const rootRouteChildren: RootRouteChildren = {
   RankingsRoute: RankingsRoute,
   TreinadoresRoute: TreinadoresRouteWithChildren,
   SuperLeagueCampeoesRoute: SuperLeagueCampeoesRoute,
+  SuperLeagueJogadoresClubesRoute: SuperLeagueJogadoresClubesRoute,
+  SuperLeagueJogadoresDivisoesRoute: SuperLeagueJogadoresDivisoesRoute,
   SuperLeaguePlayOffClubesRoute: SuperLeaguePlayOffClubesRoute,
   SuperLeaguePlayOffTreinadoresRoute: SuperLeaguePlayOffTreinadoresRoute,
   SuperLeagueTreinadorCampeoesRoute: SuperLeagueTreinadorCampeoesRoute,
