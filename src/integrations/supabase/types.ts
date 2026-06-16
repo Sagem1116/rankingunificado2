@@ -281,6 +281,83 @@ export type Database = {
           },
         ]
       }
+      players: {
+        Row: {
+          age: number | null
+          ast: number
+          ca: number
+          club_id: string | null
+          club_name: string | null
+          cp: number
+          created_at: string
+          gls: number
+          id: string
+          idu: string | null
+          info: string | null
+          league: string | null
+          module: string
+          name: string
+          ra: number
+          rec: string | null
+          rm: number
+          salary: number
+          season_id: string
+          vp: number
+        }
+        Insert: {
+          age?: number | null
+          ast?: number
+          ca?: number
+          club_id?: string | null
+          club_name?: string | null
+          cp?: number
+          created_at?: string
+          gls?: number
+          id?: string
+          idu?: string | null
+          info?: string | null
+          league?: string | null
+          module?: string
+          name: string
+          ra?: number
+          rec?: string | null
+          rm?: number
+          salary?: number
+          season_id: string
+          vp?: number
+        }
+        Update: {
+          age?: number | null
+          ast?: number
+          ca?: number
+          club_id?: string | null
+          club_name?: string | null
+          cp?: number
+          created_at?: string
+          gls?: number
+          id?: string
+          idu?: string | null
+          info?: string | null
+          league?: string | null
+          module?: string
+          name?: string
+          ra?: number
+          rec?: string | null
+          rm?: number
+          salary?: number
+          season_id?: string
+          vp?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "players_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "seasons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       seasons: {
         Row: {
           created_at: string
