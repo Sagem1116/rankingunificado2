@@ -41,12 +41,31 @@ export interface ParsedContinental {
   winner: string | null;
 }
 
+export interface ParsedPlayer {
+  idu: string | null;
+  name: string;
+  league: string | null;
+  club_name: string | null;
+  age: number | null;
+  gls: number;
+  ast: number;
+  salary: number;
+  ra: number;
+  rm: number;
+  ca: number;
+  cp: number;
+  vp: number;
+  info: string | null;
+  rec: string | null;
+}
+
 export interface ParsedData {
   teamCountry: { club: string; country: string | null }[];
   divisionWeights: { division_num: number; weight: number }[];
   standings: ParsedStanding[];
   coaches: ParsedCoach[];
   continental: ParsedContinental[];
+  players: ParsedPlayer[];
 }
 
 export interface ParseResult {
@@ -83,6 +102,31 @@ function toNum(v: unknown): number | null {
   if (v === null || v === undefined || v === "") return null;
   const n = Number(String(v).replace(",", "."));
   return Number.isFinite(n) ? n : null;
+}
+
+function num0(v: unknown): number {
+  const n = toNum(v);
+  return n == null ? 0 : n;
+}
+
+function parseSalario(v: unknown): number {
+  if (v === null || v === undefined) return 0;
+  const s = String(v).replace(/€/g, "").replace(/p\/?\s*a/gi, "").replace(/\s/g, "").replace(/,/g, "").trim();
+  if (!s) return 0;
+  const n = parseFloat(s);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function parseVP(v: unknown): number {
+  if (v === null || v === undefined) return 0;
+  let s = String(v).replace(/€/g, "").replace(/\s/g, "").trim();
+  if (!s) return 0;
+  let mult = 1;
+  if (s.endsWith("M")) { mult = 1_000_000; s = s.slice(0, -1); }
+  else if (s.endsWith("m") || s.endsWith("k") || s.endsWith("K")) { mult = 1_000; s = s.slice(0, -1); }
+  s = s.replace(/,/g, ".");
+  const n = parseFloat(s);
+  return Number.isFinite(n) ? n * mult : 0;
 }
 
 function sheetRows(wb: XLSX.WorkBook, name: string): Record<string, unknown>[] | null {
