@@ -13,6 +13,7 @@ import {
 import type { ReactNode } from "react";
 import { ThemeToggle, useThemeInit } from "./ThemeToggle";
 import { cn } from "@/lib/utils";
+import { Toaster } from "@/components/ui/sonner";
 
 const NAV = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -86,6 +87,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </header>
         <main className="flex-1 p-4 md:p-8 max-w-[1400px] w-full mx-auto">{children}</main>
       </div>
+      <Toaster richColors position="top-right" />
     </div>
   );
 }
