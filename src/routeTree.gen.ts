@@ -21,6 +21,10 @@ import { Route as TreinadoresIndexRouteImport } from './routes/treinadores.index
 import { Route as PaisesIndexRouteImport } from './routes/paises.index'
 import { Route as ClubesIndexRouteImport } from './routes/clubes.index'
 import { Route as TreinadoresNameRouteImport } from './routes/treinadores.$name'
+import { Route as SuperLeagueTreinadorCampeoesRouteImport } from './routes/super-league.treinador-campeoes'
+import { Route as SuperLeaguePlayOffTreinadoresRouteImport } from './routes/super-league.play-off-treinadores'
+import { Route as SuperLeaguePlayOffClubesRouteImport } from './routes/super-league.play-off-clubes'
+import { Route as SuperLeagueCampeoesRouteImport } from './routes/super-league.campeoes'
 import { Route as PaisesNameRouteImport } from './routes/paises.$name'
 import { Route as ClubesNameRouteImport } from './routes/clubes.$name'
 
@@ -84,6 +88,29 @@ const TreinadoresNameRoute = TreinadoresNameRouteImport.update({
   path: '/$name',
   getParentRoute: () => TreinadoresRoute,
 } as any)
+const SuperLeagueTreinadorCampeoesRoute =
+  SuperLeagueTreinadorCampeoesRouteImport.update({
+    id: '/super-league/treinador-campeoes',
+    path: '/super-league/treinador-campeoes',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const SuperLeaguePlayOffTreinadoresRoute =
+  SuperLeaguePlayOffTreinadoresRouteImport.update({
+    id: '/super-league/play-off-treinadores',
+    path: '/super-league/play-off-treinadores',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const SuperLeaguePlayOffClubesRoute =
+  SuperLeaguePlayOffClubesRouteImport.update({
+    id: '/super-league/play-off-clubes',
+    path: '/super-league/play-off-clubes',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const SuperLeagueCampeoesRoute = SuperLeagueCampeoesRouteImport.update({
+  id: '/super-league/campeoes',
+  path: '/super-league/campeoes',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PaisesNameRoute = PaisesNameRouteImport.update({
   id: '/$name',
   path: '/$name',
@@ -106,6 +133,10 @@ export interface FileRoutesByFullPath {
   '/treinadores': typeof TreinadoresRouteWithChildren
   '/clubes/$name': typeof ClubesNameRoute
   '/paises/$name': typeof PaisesNameRoute
+  '/super-league/campeoes': typeof SuperLeagueCampeoesRoute
+  '/super-league/play-off-clubes': typeof SuperLeaguePlayOffClubesRoute
+  '/super-league/play-off-treinadores': typeof SuperLeaguePlayOffTreinadoresRoute
+  '/super-league/treinador-campeoes': typeof SuperLeagueTreinadorCampeoesRoute
   '/treinadores/$name': typeof TreinadoresNameRoute
   '/clubes/': typeof ClubesIndexRoute
   '/paises/': typeof PaisesIndexRoute
@@ -119,6 +150,10 @@ export interface FileRoutesByTo {
   '/rankings': typeof RankingsRoute
   '/clubes/$name': typeof ClubesNameRoute
   '/paises/$name': typeof PaisesNameRoute
+  '/super-league/campeoes': typeof SuperLeagueCampeoesRoute
+  '/super-league/play-off-clubes': typeof SuperLeaguePlayOffClubesRoute
+  '/super-league/play-off-treinadores': typeof SuperLeaguePlayOffTreinadoresRoute
+  '/super-league/treinador-campeoes': typeof SuperLeagueTreinadorCampeoesRoute
   '/treinadores/$name': typeof TreinadoresNameRoute
   '/clubes': typeof ClubesIndexRoute
   '/paises': typeof PaisesIndexRoute
@@ -136,6 +171,10 @@ export interface FileRoutesById {
   '/treinadores': typeof TreinadoresRouteWithChildren
   '/clubes/$name': typeof ClubesNameRoute
   '/paises/$name': typeof PaisesNameRoute
+  '/super-league/campeoes': typeof SuperLeagueCampeoesRoute
+  '/super-league/play-off-clubes': typeof SuperLeaguePlayOffClubesRoute
+  '/super-league/play-off-treinadores': typeof SuperLeaguePlayOffTreinadoresRoute
+  '/super-league/treinador-campeoes': typeof SuperLeagueTreinadorCampeoesRoute
   '/treinadores/$name': typeof TreinadoresNameRoute
   '/clubes/': typeof ClubesIndexRoute
   '/paises/': typeof PaisesIndexRoute
@@ -154,6 +193,10 @@ export interface FileRouteTypes {
     | '/treinadores'
     | '/clubes/$name'
     | '/paises/$name'
+    | '/super-league/campeoes'
+    | '/super-league/play-off-clubes'
+    | '/super-league/play-off-treinadores'
+    | '/super-league/treinador-campeoes'
     | '/treinadores/$name'
     | '/clubes/'
     | '/paises/'
@@ -167,6 +210,10 @@ export interface FileRouteTypes {
     | '/rankings'
     | '/clubes/$name'
     | '/paises/$name'
+    | '/super-league/campeoes'
+    | '/super-league/play-off-clubes'
+    | '/super-league/play-off-treinadores'
+    | '/super-league/treinador-campeoes'
     | '/treinadores/$name'
     | '/clubes'
     | '/paises'
@@ -183,6 +230,10 @@ export interface FileRouteTypes {
     | '/treinadores'
     | '/clubes/$name'
     | '/paises/$name'
+    | '/super-league/campeoes'
+    | '/super-league/play-off-clubes'
+    | '/super-league/play-off-treinadores'
+    | '/super-league/treinador-campeoes'
     | '/treinadores/$name'
     | '/clubes/'
     | '/paises/'
@@ -198,6 +249,10 @@ export interface RootRouteChildren {
   PaisesRoute: typeof PaisesRouteWithChildren
   RankingsRoute: typeof RankingsRoute
   TreinadoresRoute: typeof TreinadoresRouteWithChildren
+  SuperLeagueCampeoesRoute: typeof SuperLeagueCampeoesRoute
+  SuperLeaguePlayOffClubesRoute: typeof SuperLeaguePlayOffClubesRoute
+  SuperLeaguePlayOffTreinadoresRoute: typeof SuperLeaguePlayOffTreinadoresRoute
+  SuperLeagueTreinadorCampeoesRoute: typeof SuperLeagueTreinadorCampeoesRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -286,6 +341,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TreinadoresNameRouteImport
       parentRoute: typeof TreinadoresRoute
     }
+    '/super-league/treinador-campeoes': {
+      id: '/super-league/treinador-campeoes'
+      path: '/super-league/treinador-campeoes'
+      fullPath: '/super-league/treinador-campeoes'
+      preLoaderRoute: typeof SuperLeagueTreinadorCampeoesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/super-league/play-off-treinadores': {
+      id: '/super-league/play-off-treinadores'
+      path: '/super-league/play-off-treinadores'
+      fullPath: '/super-league/play-off-treinadores'
+      preLoaderRoute: typeof SuperLeaguePlayOffTreinadoresRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/super-league/play-off-clubes': {
+      id: '/super-league/play-off-clubes'
+      path: '/super-league/play-off-clubes'
+      fullPath: '/super-league/play-off-clubes'
+      preLoaderRoute: typeof SuperLeaguePlayOffClubesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/super-league/campeoes': {
+      id: '/super-league/campeoes'
+      path: '/super-league/campeoes'
+      fullPath: '/super-league/campeoes'
+      preLoaderRoute: typeof SuperLeagueCampeoesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/paises/$name': {
       id: '/paises/$name'
       path: '/$name'
@@ -352,6 +435,10 @@ const rootRouteChildren: RootRouteChildren = {
   PaisesRoute: PaisesRouteWithChildren,
   RankingsRoute: RankingsRoute,
   TreinadoresRoute: TreinadoresRouteWithChildren,
+  SuperLeagueCampeoesRoute: SuperLeagueCampeoesRoute,
+  SuperLeaguePlayOffClubesRoute: SuperLeaguePlayOffClubesRoute,
+  SuperLeaguePlayOffTreinadoresRoute: SuperLeaguePlayOffTreinadoresRoute,
+  SuperLeagueTreinadorCampeoesRoute: SuperLeagueTreinadorCampeoesRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
