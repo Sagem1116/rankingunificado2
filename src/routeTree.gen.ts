@@ -17,6 +17,7 @@ import { Route as HallOfFameRouteImport } from './routes/hall-of-fame'
 import { Route as ConfiguracaoRouteImport } from './routes/configuracao'
 import { Route as ClubesRouteImport } from './routes/clubes'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ClubesNameRouteImport } from './routes/clubes.$name'
 
 const TreinadoresRoute = TreinadoresRouteImport.update({
   id: '/treinadores',
@@ -58,37 +59,45 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ClubesNameRoute = ClubesNameRouteImport.update({
+  id: '/$name',
+  path: '/$name',
+  getParentRoute: () => ClubesRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/clubes': typeof ClubesRoute
+  '/clubes': typeof ClubesRouteWithChildren
   '/configuracao': typeof ConfiguracaoRoute
   '/hall-of-fame': typeof HallOfFameRoute
   '/importar': typeof ImportarRoute
   '/paises': typeof PaisesRoute
   '/rankings': typeof RankingsRoute
   '/treinadores': typeof TreinadoresRoute
+  '/clubes/$name': typeof ClubesNameRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/clubes': typeof ClubesRoute
+  '/clubes': typeof ClubesRouteWithChildren
   '/configuracao': typeof ConfiguracaoRoute
   '/hall-of-fame': typeof HallOfFameRoute
   '/importar': typeof ImportarRoute
   '/paises': typeof PaisesRoute
   '/rankings': typeof RankingsRoute
   '/treinadores': typeof TreinadoresRoute
+  '/clubes/$name': typeof ClubesNameRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/clubes': typeof ClubesRoute
+  '/clubes': typeof ClubesRouteWithChildren
   '/configuracao': typeof ConfiguracaoRoute
   '/hall-of-fame': typeof HallOfFameRoute
   '/importar': typeof ImportarRoute
   '/paises': typeof PaisesRoute
   '/rankings': typeof RankingsRoute
   '/treinadores': typeof TreinadoresRoute
+  '/clubes/$name': typeof ClubesNameRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -101,6 +110,7 @@ export interface FileRouteTypes {
     | '/paises'
     | '/rankings'
     | '/treinadores'
+    | '/clubes/$name'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -111,6 +121,7 @@ export interface FileRouteTypes {
     | '/paises'
     | '/rankings'
     | '/treinadores'
+    | '/clubes/$name'
   id:
     | '__root__'
     | '/'
@@ -121,11 +132,12 @@ export interface FileRouteTypes {
     | '/paises'
     | '/rankings'
     | '/treinadores'
+    | '/clubes/$name'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  ClubesRoute: typeof ClubesRoute
+  ClubesRoute: typeof ClubesRouteWithChildren
   ConfiguracaoRoute: typeof ConfiguracaoRoute
   HallOfFameRoute: typeof HallOfFameRoute
   ImportarRoute: typeof ImportarRoute
@@ -192,12 +204,30 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/clubes/$name': {
+      id: '/clubes/$name'
+      path: '/$name'
+      fullPath: '/clubes/$name'
+      preLoaderRoute: typeof ClubesNameRouteImport
+      parentRoute: typeof ClubesRoute
+    }
   }
 }
 
+interface ClubesRouteChildren {
+  ClubesNameRoute: typeof ClubesNameRoute
+}
+
+const ClubesRouteChildren: ClubesRouteChildren = {
+  ClubesNameRoute: ClubesNameRoute,
+}
+
+const ClubesRouteWithChildren =
+  ClubesRoute._addFileChildren(ClubesRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  ClubesRoute: ClubesRoute,
+  ClubesRoute: ClubesRouteWithChildren,
   ConfiguracaoRoute: ConfiguracaoRoute,
   HallOfFameRoute: HallOfFameRoute,
   ImportarRoute: ImportarRoute,
