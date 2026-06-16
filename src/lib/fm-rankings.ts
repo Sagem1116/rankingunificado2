@@ -14,6 +14,7 @@ export interface StandingRow {
   position: number | null;
   club_name: string;
   is_champion: boolean;
+  info?: string | null;
 }
 
 export interface ContinentalRow {
