@@ -76,8 +76,8 @@ export function AppShell({ children }: { children: ReactNode }) {
                 className={cn(
                   "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                   active
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                    : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
+                    ? "bg-gold/10 text-gold border border-gold/30 shadow-[0_0_18px_-6px_oklch(0.82_0.17_88/0.5)]"
+                    : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-foreground",
                 )}
               >
                 <Icon className="size-4 shrink-0" />
@@ -98,8 +98,8 @@ export function AppShell({ children }: { children: ReactNode }) {
                 className={cn(
                   "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                   active
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                    : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
+                    ? "bg-gold/10 text-gold border border-gold/30 shadow-[0_0_18px_-6px_oklch(0.82_0.17_88/0.5)]"
+                    : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-foreground",
                 )}
               >
                 <Icon className="size-4 shrink-0" />
@@ -120,8 +120,8 @@ export function AppShell({ children }: { children: ReactNode }) {
                 className={cn(
                   "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                   active
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                    : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
+                    ? "bg-gold/10 text-gold border border-gold/30 shadow-[0_0_18px_-6px_oklch(0.82_0.17_88/0.5)]"
+                    : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-foreground",
                 )}
               >
                 <Icon className="size-4 shrink-0" />
