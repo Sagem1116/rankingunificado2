@@ -137,7 +137,8 @@ export async function importSeason(parse: ParseResult, year: number, filename: s
     module,
     filename,
     status: parse.blocked ? "blocked" : "ok",
-    warnings: parse.messages as unknown as object[],
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    warnings: parse.messages as any,
   });
 
   return {
