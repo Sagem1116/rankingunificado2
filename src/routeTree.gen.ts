@@ -9,8 +9,50 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TreinadoresRouteImport } from './routes/treinadores'
+import { Route as RankingsRouteImport } from './routes/rankings'
+import { Route as PaisesRouteImport } from './routes/paises'
+import { Route as ImportarRouteImport } from './routes/importar'
+import { Route as HallOfFameRouteImport } from './routes/hall-of-fame'
+import { Route as ConfiguracaoRouteImport } from './routes/configuracao'
+import { Route as ClubesRouteImport } from './routes/clubes'
 import { Route as IndexRouteImport } from './routes/index'
 
+const TreinadoresRoute = TreinadoresRouteImport.update({
+  id: '/treinadores',
+  path: '/treinadores',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RankingsRoute = RankingsRouteImport.update({
+  id: '/rankings',
+  path: '/rankings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PaisesRoute = PaisesRouteImport.update({
+  id: '/paises',
+  path: '/paises',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ImportarRoute = ImportarRouteImport.update({
+  id: '/importar',
+  path: '/importar',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HallOfFameRoute = HallOfFameRouteImport.update({
+  id: '/hall-of-fame',
+  path: '/hall-of-fame',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConfiguracaoRoute = ConfiguracaoRouteImport.update({
+  id: '/configuracao',
+  path: '/configuracao',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ClubesRoute = ClubesRouteImport.update({
+  id: '/clubes',
+  path: '/clubes',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -19,28 +61,130 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/clubes': typeof ClubesRoute
+  '/configuracao': typeof ConfiguracaoRoute
+  '/hall-of-fame': typeof HallOfFameRoute
+  '/importar': typeof ImportarRoute
+  '/paises': typeof PaisesRoute
+  '/rankings': typeof RankingsRoute
+  '/treinadores': typeof TreinadoresRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/clubes': typeof ClubesRoute
+  '/configuracao': typeof ConfiguracaoRoute
+  '/hall-of-fame': typeof HallOfFameRoute
+  '/importar': typeof ImportarRoute
+  '/paises': typeof PaisesRoute
+  '/rankings': typeof RankingsRoute
+  '/treinadores': typeof TreinadoresRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/clubes': typeof ClubesRoute
+  '/configuracao': typeof ConfiguracaoRoute
+  '/hall-of-fame': typeof HallOfFameRoute
+  '/importar': typeof ImportarRoute
+  '/paises': typeof PaisesRoute
+  '/rankings': typeof RankingsRoute
+  '/treinadores': typeof TreinadoresRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/clubes'
+    | '/configuracao'
+    | '/hall-of-fame'
+    | '/importar'
+    | '/paises'
+    | '/rankings'
+    | '/treinadores'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/clubes'
+    | '/configuracao'
+    | '/hall-of-fame'
+    | '/importar'
+    | '/paises'
+    | '/rankings'
+    | '/treinadores'
+  id:
+    | '__root__'
+    | '/'
+    | '/clubes'
+    | '/configuracao'
+    | '/hall-of-fame'
+    | '/importar'
+    | '/paises'
+    | '/rankings'
+    | '/treinadores'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ClubesRoute: typeof ClubesRoute
+  ConfiguracaoRoute: typeof ConfiguracaoRoute
+  HallOfFameRoute: typeof HallOfFameRoute
+  ImportarRoute: typeof ImportarRoute
+  PaisesRoute: typeof PaisesRoute
+  RankingsRoute: typeof RankingsRoute
+  TreinadoresRoute: typeof TreinadoresRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/treinadores': {
+      id: '/treinadores'
+      path: '/treinadores'
+      fullPath: '/treinadores'
+      preLoaderRoute: typeof TreinadoresRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/rankings': {
+      id: '/rankings'
+      path: '/rankings'
+      fullPath: '/rankings'
+      preLoaderRoute: typeof RankingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/paises': {
+      id: '/paises'
+      path: '/paises'
+      fullPath: '/paises'
+      preLoaderRoute: typeof PaisesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/importar': {
+      id: '/importar'
+      path: '/importar'
+      fullPath: '/importar'
+      preLoaderRoute: typeof ImportarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/hall-of-fame': {
+      id: '/hall-of-fame'
+      path: '/hall-of-fame'
+      fullPath: '/hall-of-fame'
+      preLoaderRoute: typeof HallOfFameRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/configuracao': {
+      id: '/configuracao'
+      path: '/configuracao'
+      fullPath: '/configuracao'
+      preLoaderRoute: typeof ConfiguracaoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/clubes': {
+      id: '/clubes'
+      path: '/clubes'
+      fullPath: '/clubes'
+      preLoaderRoute: typeof ClubesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -53,17 +197,14 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ClubesRoute: ClubesRoute,
+  ConfiguracaoRoute: ConfiguracaoRoute,
+  HallOfFameRoute: HallOfFameRoute,
+  ImportarRoute: ImportarRoute,
+  PaisesRoute: PaisesRoute,
+  RankingsRoute: RankingsRoute,
+  TreinadoresRoute: TreinadoresRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
