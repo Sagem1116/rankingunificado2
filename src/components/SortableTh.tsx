@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react";
+import { ArrowDown, ChevronsUpDown } from "lucide-react";
 import type { RankingEntry } from "@/lib/fm-rankings";
 
 export type SortKey = "points" | "titles";
