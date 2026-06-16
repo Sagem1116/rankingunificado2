@@ -81,10 +81,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { title: "FM World Rankings — Base de Dados Histórica" },
       { name: "description", content: "Rankings mundiais de clubes, treinadores e países do Football Manager ao longo de múltiplas épocas." },
       { name: "author", content: "FM World Rankings" },
-      { property: "og:title", content: "FM World Rankings" },
-      { property: "og:description", content: "Base de dados histórica mundial de Football Manager." },
+      { property: "og:title", content: "FM World Rankings — Base de Dados Histórica" },
+      { property: "og:description", content: "Rankings mundiais de clubes, treinadores e países do Football Manager ao longo de múltiplas épocas." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
+      { name: "twitter:title", content: "FM World Rankings — Base de Dados Histórica" },
+      { name: "twitter:description", content: "Rankings mundiais de clubes, treinadores e países do Football Manager ao longo de múltiplas épocas." },
+      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/47acbc56-76a4-4dcf-8a53-7884a317e1e2" },
+      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/47acbc56-76a4-4dcf-8a53-7884a317e1e2" },
     ],
     links: [
       {
