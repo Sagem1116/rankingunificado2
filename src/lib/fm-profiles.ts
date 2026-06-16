@@ -1,12 +1,12 @@
 import type { AllData } from "./fm-db";
 import {
-  positionPoints,
-  divisionWeight,
-  DEFAULT_COMPETITION_WEIGHTS,
-  continentalTitleWeight,
-  NATIONAL_CHAMPION_BONUS,
-  SUPERLEAGUE_CHAMPION_BONUS,
-} from "./fm-defaults";
+  DEFAULT_CONFIG,
+  cfgPositionPoints,
+  cfgDivisionWeight,
+  cfgTitleWeight,
+  cfgDecay,
+  type FmConfig,
+} from "./fm-config";
 
 export type Module = "superleague" | "national" | "continental";
 
@@ -70,24 +70,39 @@ export interface CountryProfile {
   chart: { year: number; weighted: number }[];
 }
 
-function standingWeighted(s: {
-  module: Module;
-  division_num: number | null;
-  position: number | null;
-  is_champion: boolean;
-}): number {
-  const base = positionPoints(s.position);
-  const compW = DEFAULT_COMPETITION_WEIGHTS[s.module as keyof typeof DEFAULT_COMPETITION_WEIGHTS] ?? 1;
-  const divW = s.module === "superleague" ? divisionWeight(s.division_num) : 1;
-  let weighted = base * compW * divW;
+function standingWeighted(
+  cfg: FmConfig,
+  latestYear: number,
+  s: {
+    season_year: number;
+    module: Module;
+    division_num: number | null;
+    position: number | null;
+    is_champion: boolean;
+  },
+): number {
+  const base = cfgPositionPoints(cfg, s.position);
+  const compW = cfg.competitionWeights[s.module as keyof typeof cfg.competitionWeights] ?? 1;
+  const divW = s.module === "superleague" ? cfgDivisionWeight(cfg, s.division_num) : 1;
+  const decay = cfgDecay(cfg, s.season_year, latestYear);
+  let weighted = base * compW * divW * decay;
   if (s.is_champion) {
-    const bonus = s.module === "superleague" ? SUPERLEAGUE_CHAMPION_BONUS : NATIONAL_CHAMPION_BONUS;
-    weighted += bonus * compW;
+    const bonus = s.module === "superleague" ? cfg.superleagueChampionBonus : cfg.nationalChampionBonus;
+    weighted += bonus * compW * decay;
   }
   return weighted;
 }
 
-export function buildClubProfile(data: AllData, name: string): ClubProfile | null {
+function latestYearOf(data: AllData): number {
+  const ys = [
+    ...data.standings.map((s) => s.season_year),
+    ...data.continental.map((c) => c.season_year),
+  ];
+  return ys.length ? Math.max(...ys) : 0;
+}
+
+export function buildClubProfile(data: AllData, name: string, cfg: FmConfig = DEFAULT_CONFIG): ClubProfile | null {
+  const latestYear = latestYearOf(data);
   const own = data.standings.filter((s) => s.club_name === name);
   const cont = data.continental.filter((c) => c.team1 === name || c.team2 === name);
   if (own.length === 0 && cont.length === 0) return null;
@@ -98,7 +113,7 @@ export function buildClubProfile(data: AllData, name: string): ClubProfile | nul
     division_num: s.division_num,
     position: s.position,
     is_champion: s.is_champion,
-    weighted: standingWeighted(s),
+    weighted: standingWeighted(cfg, latestYear, s),
   }));
 
   const continental: ContinentalAppearance[] = cont.map((c) => {
@@ -122,7 +137,7 @@ export function buildClubProfile(data: AllData, name: string): ClubProfile | nul
   let bestPosition: number | null = null;
   for (const s of seasons) {
     totalWeighted += s.weighted;
-    totalRaw += positionPoints(s.position);
+    totalRaw += cfgPositionPoints(cfg, s.position);
     if (s.is_champion) {
       if (s.module === "superleague") superleagueTitles++;
       else nationalTitles++;
@@ -131,8 +146,8 @@ export function buildClubProfile(data: AllData, name: string): ClubProfile | nul
   }
   let continentalTitles = 0;
   for (const c of continental) {
-    const { weight } = continentalTitleWeight(c.competition);
-    const compW = DEFAULT_COMPETITION_WEIGHTS.continental;
+    const { weight } = cfgTitleWeight(cfg, c.competition);
+    const compW = cfg.competitionWeights.continental * cfgDecay(cfg, c.year, latestYear);
     if (c.won) {
       continentalTitles++;
       totalWeighted += weight * compW;
@@ -146,8 +161,8 @@ export function buildClubProfile(data: AllData, name: string): ClubProfile | nul
   const byYear = new Map<number, number>();
   for (const s of seasons) byYear.set(s.year, (byYear.get(s.year) ?? 0) + s.weighted);
   for (const c of continental) {
-    const { weight } = continentalTitleWeight(c.competition);
-    const compW = DEFAULT_COMPETITION_WEIGHTS.continental;
+    const { weight } = cfgTitleWeight(cfg, c.competition);
+    const compW = cfg.competitionWeights.continental * cfgDecay(cfg, c.year, latestYear);
     byYear.set(c.year, (byYear.get(c.year) ?? 0) + weight * compW * (c.won ? 1 : 0.3));
   }
   const years = new Set([...seasons.map((s) => s.year), ...continental.map((c) => c.year)]);
@@ -170,7 +185,8 @@ export function buildClubProfile(data: AllData, name: string): ClubProfile | nul
   };
 }
 
-export function buildCoachProfile(data: AllData, name: string): CoachProfile | null {
+export function buildCoachProfile(data: AllData, name: string, cfg: FmConfig = DEFAULT_CONFIG): CoachProfile | null {
+  const latestYear = latestYearOf(data);
   const assigns = data.coaches.filter((c) => c.name === name);
   if (assigns.length === 0) return null;
 
@@ -183,7 +199,7 @@ export function buildCoachProfile(data: AllData, name: string): CoachProfile | n
   const ptKey = new Map<string, number>();
   for (const s of data.standings) {
     const k = `${s.season_year}|${s.module}|${s.club_name}`;
-    ptKey.set(k, (ptKey.get(k) ?? 0) + standingWeighted(s));
+    ptKey.set(k, (ptKey.get(k) ?? 0) + standingWeighted(cfg, latestYear, s));
   }
 
   const seasons: CoachSeasonRow[] = assigns.map((a) => {
@@ -218,7 +234,8 @@ export function buildCoachProfile(data: AllData, name: string): CoachProfile | n
   };
 }
 
-export function buildCountryProfile(data: AllData, name: string): CountryProfile | null {
+export function buildCountryProfile(data: AllData, name: string, cfg: FmConfig = DEFAULT_CONFIG): CountryProfile | null {
+  const latestYear = latestYearOf(data);
   const clubNames = Object.entries(data.clubCountry)
     .filter(([, c]) => c === name)
     .map(([club]) => club);
@@ -231,7 +248,7 @@ export function buildCountryProfile(data: AllData, name: string): CountryProfile
 
   for (const s of data.standings) {
     if (!clubSet.has(s.club_name)) continue;
-    const w = standingWeighted(s);
+    const w = standingWeighted(cfg, latestYear, s);
     const cur = clubAgg.get(s.club_name) ?? { weighted: 0, titles: 0 };
     cur.weighted += w;
     if (s.is_champion) cur.titles++;
@@ -242,8 +259,8 @@ export function buildCountryProfile(data: AllData, name: string): CountryProfile
   for (const c of data.continental) {
     const club = clubSet.has(c.team1 ?? "") ? c.team1 : clubSet.has(c.team2 ?? "") ? c.team2 : null;
     if (!club) continue;
-    const { weight } = continentalTitleWeight(c.competition);
-    const compW = DEFAULT_COMPETITION_WEIGHTS.continental;
+    const { weight } = cfgTitleWeight(cfg, c.competition);
+    const compW = cfg.competitionWeights.continental * cfgDecay(cfg, c.season_year, latestYear);
     const won = c.winner === club;
     const w = weight * compW * (won ? 1 : 0.3);
     const cur = clubAgg.get(club) ?? { weighted: 0, titles: 0 };
