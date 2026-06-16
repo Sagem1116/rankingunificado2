@@ -137,7 +137,7 @@ export async function importSeason(parse: ParseResult, year: number, filename: s
     module,
     filename,
     status: parse.blocked ? "blocked" : "ok",
-    warnings: parse.messages,
+    warnings: parse.messages as unknown as object[],
   });
 
   return {
