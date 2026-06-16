@@ -272,6 +272,53 @@ export function parseWorkbook(buffer: ArrayBuffer, filename = ""): ParseResult {
     messages.push({ level: "yellow", text: "⚠ Folha 'Treinadores' não encontrada — clubes ficam sem treinador associado" });
   }
 
+  // --- Jogadores (superleague) ---
+  if (kind === "superleague") {
+    const jg = sheetRows(wb, "Jogadores");
+    if (jg && jg.length) {
+      const nameCol = findCol(jg[0], ["Nome", "Name"]);
+      const iduCol = findCol(jg[0], ["IDU", "UID"]);
+      const ligaCol = findCol(jg[0], ["Liga", "League"]);
+      const clubCol = findCol(jg[0], ["Clube", "Equipa"]);
+      const ageCol = findCol(jg[0], ["Idade", "Age"]);
+      const glsCol = findCol(jg[0], ["Gls", "Golos"]);
+      const astCol = findCol(jg[0], ["Ast", "Assist"]);
+      const salCol = findCol(jg[0], ["Salário", "Salario", "Salary"]);
+      const raCol = findCol(jg[0], ["R.A.", "RA"]);
+      const rmCol = findCol(jg[0], ["R.M.", "RM"]);
+      const caCol = findCol(jg[0], ["C.A.", "CA"]);
+      const cpCol = findCol(jg[0], ["C.P.", "CP"]);
+      const vpCol = findCol(jg[0], ["VP", "Valor"]);
+      const infCol = findCol(jg[0], ["Inf", "Info"]);
+      const recCol = findCol(jg[0], ["Rec"]);
+      if (nameCol) {
+        for (const r of jg) {
+          const name = String(r[nameCol] ?? "").trim();
+          if (!name || name.startsWith("http")) continue;
+          data.players.push({
+            idu: iduCol ? (String(r[iduCol] ?? "").trim() || null) : null,
+            name,
+            league: ligaCol ? (String(r[ligaCol] ?? "").trim() || null) : null,
+            club_name: clubCol ? (String(r[clubCol] ?? "").trim() || null) : null,
+            age: ageCol ? toNum(r[ageCol]) : null,
+            gls: glsCol ? num0(r[glsCol]) : 0,
+            ast: astCol ? num0(r[astCol]) : 0,
+            salary: salCol ? parseSalario(r[salCol]) : 0,
+            ra: raCol ? num0(r[raCol]) : 0,
+            rm: rmCol ? num0(r[rmCol]) : 0,
+            ca: caCol ? num0(r[caCol]) : 0,
+            cp: cpCol ? num0(r[cpCol]) : 0,
+            vp: vpCol ? parseVP(r[vpCol]) : 0,
+            info: infCol ? (String(r[infCol] ?? "").trim() || null) : null,
+            rec: recCol ? (String(r[recCol] ?? "").trim() || null) : null,
+          });
+        }
+      }
+    } else {
+      messages.push({ level: "yellow", text: "⚠ Folha 'Jogadores' não encontrada — páginas de jogadores ficam vazias para esta época" });
+    }
+  }
+
   const blocked = messages.some((m) => m.level === "red");
   if (!blocked) {
     messages.unshift({ level: "green", text: "✓ Dados validados com sucesso" });
