@@ -38,24 +38,18 @@ export function exportRankingsPDF(sections: ExportSection[], heading: string, fi
   let startY = 28;
   for (const s of sections) {
     const data = rows(s.entries, s.mode).slice(0, 100);
+    doc.setFontSize(11);
+    doc.setTextColor(20);
+    doc.text(s.title, 14, startY);
     autoTable(doc, {
-      startY,
+      startY: startY + 3,
       head: [["#", "Nome", "Títulos", "Pontos"]],
       body: data.map((r) => [r["#"], r.Nome, r.Títulos, r.Pontos.toLocaleString("pt-PT")]),
       headStyles: { fillColor: [34, 139, 90] },
       styles: { fontSize: 8 },
-      didDrawPage: () => {},
-      margin: { top: 28 },
-      didParseCell: () => {},
-      willDrawCell: () => {},
-      // section title
     });
     // @ts-expect-error lastAutoTable injected by plugin
     startY = (doc.lastAutoTable?.finalY ?? startY) + 10;
-    if (startY > 260) {
-      doc.addPage();
-      startY = 20;
-    }
   }
   doc.save(filename);
 }
