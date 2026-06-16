@@ -25,7 +25,7 @@ function Stat({ label, value }: { label: string; value: string | number }) {
 function ClubProfilePage() {
   const { name } = Route.useParams();
   const { data, isLoading } = useRankings();
-  const profile = useMemo(() => (data ? buildClubProfile(data.data, name) : null), [data, name]);
+  const profile = useMemo(() => (data ? buildClubProfile(data.data, name, data.config) : null), [data, name]);
 
   if (isLoading) {
     return (

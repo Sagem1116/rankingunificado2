@@ -1,11 +1,11 @@
 import {
-  positionPoints,
-  divisionWeight,
-  DEFAULT_COMPETITION_WEIGHTS,
-  continentalTitleWeight,
-  NATIONAL_CHAMPION_BONUS,
-  SUPERLEAGUE_CHAMPION_BONUS,
-} from "./fm-defaults";
+  DEFAULT_CONFIG,
+  cfgPositionPoints,
+  cfgDivisionWeight,
+  cfgTitleWeight,
+  cfgDecay,
+  type FmConfig,
+} from "./fm-config";
 
 export interface StandingRow {
   season_year: number;
@@ -62,10 +62,16 @@ function add(map: Map<string, RankingEntry>, name: string, raw: number, weighted
   map.set(name, e);
 }
 
-export function computeRankings(input: ComputeInput): ComputeResult {
+export function computeRankings(input: ComputeInput, config: FmConfig = DEFAULT_CONFIG): ComputeResult {
   const clubs = new Map<string, RankingEntry>();
   const countries = new Map<string, RankingEntry>();
   const clubSeasonPoints: Record<string, { raw: number; weighted: number }> = {};
+
+  const years = [
+    ...input.standings.map((s) => s.season_year),
+    ...input.continental.map((c) => c.season_year),
+  ];
+  const latestYear = years.length ? Math.max(...years) : 0;
 
   const bump = (season: number, module: string, club: string, raw: number, weighted: number) => {
     const k = `${season}|${module}|${club}`;
@@ -76,16 +82,17 @@ export function computeRankings(input: ComputeInput): ComputeResult {
   };
 
   for (const s of input.standings) {
-    const base = positionPoints(s.position);
-    const compW = DEFAULT_COMPETITION_WEIGHTS[s.module as keyof typeof DEFAULT_COMPETITION_WEIGHTS] ?? 1;
-    const divW = s.module === "superleague" ? divisionWeight(s.division_num) : 1;
+    const base = cfgPositionPoints(config, s.position);
+    const compW = config.competitionWeights[s.module as keyof typeof config.competitionWeights] ?? 1;
+    const divW = s.module === "superleague" ? cfgDivisionWeight(config, s.division_num) : 1;
+    const decay = cfgDecay(config, s.season_year, latestYear);
     let raw = base;
-    let weighted = base * compW * divW;
+    let weighted = base * compW * divW * decay;
     let titles = 0;
     if (s.is_champion) {
-      const bonus = s.module === "superleague" ? SUPERLEAGUE_CHAMPION_BONUS : NATIONAL_CHAMPION_BONUS;
+      const bonus = s.module === "superleague" ? config.superleagueChampionBonus : config.nationalChampionBonus;
       raw += bonus * 0.5;
-      weighted += bonus * compW;
+      weighted += bonus * compW * decay;
       titles = 1;
     }
     add(clubs, s.club_name, raw, weighted, titles);
@@ -95,20 +102,21 @@ export function computeRankings(input: ComputeInput): ComputeResult {
   }
 
   for (const c of input.continental) {
-    const { weight } = continentalTitleWeight(c.competition);
-    const compW = DEFAULT_COMPETITION_WEIGHTS.continental;
+    const { weight } = cfgTitleWeight(config, c.competition);
+    const compW = config.competitionWeights.continental;
+    const decay = cfgDecay(config, c.season_year, latestYear);
     if (c.winner) {
-      add(clubs, c.winner, 200, weight * compW, 1);
-      bump(c.season_year, "continental", c.winner, 200, weight * compW);
+      add(clubs, c.winner, 200, weight * compW * decay, 1);
+      bump(c.season_year, "continental", c.winner, 200, weight * compW * decay);
       const country = input.clubCountry[c.winner];
-      if (country) add(countries, country, 200, weight * compW, 1);
+      if (country) add(countries, country, 200, weight * compW * decay, 1);
     }
     const loser = c.winner === c.team1 ? c.team2 : c.team1;
     if (loser) {
-      add(clubs, loser, 50, weight * compW * 0.3, 0);
-      bump(c.season_year, "continental", loser, 50, weight * compW * 0.3);
+      add(clubs, loser, 50, weight * compW * decay * 0.3, 0);
+      bump(c.season_year, "continental", loser, 50, weight * compW * decay * 0.3);
       const country = input.clubCountry[loser];
-      if (country) add(countries, country, 50, weight * compW * 0.3, 0);
+      if (country) add(countries, country, 50, weight * compW * decay * 0.3, 0);
     }
   }
 

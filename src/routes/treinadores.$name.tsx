@@ -25,7 +25,7 @@ function Stat({ label, value }: { label: string; value: string | number }) {
 function CoachProfilePage() {
   const { name } = Route.useParams();
   const { data, isLoading } = useRankings();
-  const profile = useMemo(() => (data ? buildCoachProfile(data.data, name) : null), [data, name]);
+  const profile = useMemo(() => (data ? buildCoachProfile(data.data, name, data.config) : null), [data, name]);
 
   if (isLoading) {
     return (

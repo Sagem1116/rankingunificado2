@@ -1,5 +1,21 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Construction } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { Loader2, Settings, Save, Plus, Check, Trash2, RotateCcw } from "lucide-react";
+import { toast } from "sonner";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { useActiveConfig } from "@/lib/useRankings";
+import { cloneConfig, DEFAULT_CONFIG, type FmConfig } from "@/lib/fm-config";
+import { saveConfig, createProfile, activateProfile, deleteProfile, type WeightProfile } from "@/lib/fm-config-db";
 
 export const Route = createFileRoute("/configuracao")({
   head: () => ({
@@ -8,15 +24,210 @@ export const Route = createFileRoute("/configuracao")({
       { name: "description", content: "Pesos de competições, divisões, títulos e fórmula mundial editáveis." },
     ],
   }),
-  component: Stub,
+  component: ConfigPage,
 });
 
-function Stub() {
+function NumField({ label, value, onChange, step = 1 }: { label: string; value: number; onChange: (v: number) => void; step?: number }) {
   return (
-    <div className="flex flex-col items-center justify-center py-24 text-center">
-      <Construction className="size-10 text-muted-foreground mb-4" />
-      <h1 className="text-2xl font-bold">Configuração</h1>
-      <p className="text-muted-foreground mt-2 max-w-md">Pesos de competições, divisões, títulos e fórmula mundial editáveis. Esta secção chega numa próxima fase.</p>
+    <div className="space-y-1">
+      <Label className="text-xs text-muted-foreground">{label}</Label>
+      <Input
+        type="number"
+        step={step}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="h-9 tabular-nums"
+      />
+    </div>
+  );
+}
+
+function ConfigPage() {
+  const { data, isLoading } = useActiveConfig();
+  const qc = useQueryClient();
+  const [cfg, setCfg] = useState<FmConfig | null>(null);
+  const [profiles, setProfiles] = useState<WeightProfile[]>([]);
+  const [activeId, setActiveId] = useState<string>("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (data) {
+      setCfg(cloneConfig(data.config));
+      setProfiles(data.profiles);
+      setActiveId(data.activeId);
+    }
+  }, [data]);
+
+  const upd = (fn: (c: FmConfig) => void) => setCfg((prev) => {
+    if (!prev) return prev;
+    const next = cloneConfig(prev);
+    fn(next);
+    return next;
+  });
+
+  const positions = useMemo(() => Array.from({ length: 20 }, (_, i) => i + 1), []);
+  const divisions = useMemo(() => Array.from({ length: 11 }, (_, i) => i + 1), []);
+
+  if (isLoading || !cfg) {
+    return (
+      <div className="flex items-center justify-center py-32 text-muted-foreground">
+        <Loader2 className="size-6 animate-spin mr-2" /> A carregar configuração…
+      </div>
+    );
+  }
+
+  const refresh = () => {
+    qc.invalidateQueries({ queryKey: ["fm-config"] });
+    qc.invalidateQueries({ queryKey: ["fm-all-data"] });
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await saveConfig(activeId, cfg);
+      toast.success("Configuração guardada. Rankings recalculados.");
+      refresh();
+    } catch (e) {
+      toast.error("Erro ao guardar: " + (e as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleNewProfile = async () => {
+    const name = window.prompt("Nome do novo perfil de configuração:");
+    if (!name) return;
+    try {
+      const id = await createProfile(name, cfg);
+      await activateProfile(id);
+      toast.success(`Perfil "${name}" criado e ativado.`);
+      refresh();
+    } catch (e) {
+      toast.error("Erro: " + (e as Error).message);
+    }
+  };
+
+  const handleActivate = async (id: string) => {
+    try {
+      await activateProfile(id);
+      toast.success("Perfil ativado.");
+      refresh();
+    } catch (e) {
+      toast.error("Erro: " + (e as Error).message);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (profiles.length <= 1) {
+      toast.error("Não é possível eliminar o único perfil.");
+      return;
+    }
+    if (!window.confirm("Eliminar este perfil de configuração?")) return;
+    try {
+      await deleteProfile(id);
+      if (id === activeId && profiles[0]) await activateProfile(profiles.find((p) => p.id !== id)!.id);
+      toast.success("Perfil eliminado.");
+      refresh();
+    } catch (e) {
+      toast.error("Erro: " + (e as Error).message);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+            <Settings className="size-6 text-primary" /> Configuração
+          </h1>
+          <p className="text-muted-foreground text-sm mt-1">Pesos, bónus, desvalorização e fórmula mundial</p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setCfg(cloneConfig(DEFAULT_CONFIG))}>
+            <RotateCcw className="size-4" /> Repor padrão
+          </Button>
+          <Button onClick={handleSave} disabled={saving}>
+            {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />} Guardar
+          </Button>
+        </div>
+      </div>
+
+      <Card>
+        <CardHeader><CardTitle className="text-base">Perfis de configuração</CardTitle></CardHeader>
+        <CardContent className="space-y-2">
+          {profiles.map((p) => (
+            <div key={p.id} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2">
+              <span className="flex-1 font-medium">{p.name}</span>
+              {p.id === activeId ? (
+                <span className="text-xs text-primary flex items-center gap-1"><Check className="size-3" /> Ativo</span>
+              ) : (
+                <Button size="sm" variant="ghost" onClick={() => handleActivate(p.id)}>Ativar</Button>
+              )}
+              <Button size="sm" variant="ghost" onClick={() => handleDelete(p.id)}>
+                <Trash2 className="size-4 text-destructive" />
+              </Button>
+            </div>
+          ))}
+          <Button variant="outline" size="sm" onClick={handleNewProfile}>
+            <Plus className="size-4" /> Novo perfil (a partir dos valores atuais)
+          </Button>
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-4">
+        <Card>
+          <CardHeader><CardTitle className="text-base">Pesos por competição (Fórmula Mundial)</CardTitle></CardHeader>
+          <CardContent className="grid grid-cols-3 gap-3">
+            <NumField label="SuperLeague" step={0.1} value={cfg.competitionWeights.superleague} onChange={(v) => upd((c) => { c.competitionWeights.superleague = v; })} />
+            <NumField label="Continental" step={0.1} value={cfg.competitionWeights.continental} onChange={(v) => upd((c) => { c.competitionWeights.continental = v; })} />
+            <NumField label="Nacional" step={0.1} value={cfg.competitionWeights.national} onChange={(v) => upd((c) => { c.competitionWeights.national = v; })} />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader><CardTitle className="text-base">Bónus de campeão & desvalorização</CardTitle></CardHeader>
+          <CardContent className="grid grid-cols-3 gap-3">
+            <NumField label="Campeão SuperLeague" value={cfg.superleagueChampionBonus} onChange={(v) => upd((c) => { c.superleagueChampionBonus = v; })} />
+            <NumField label="Campeão Nacional" value={cfg.nationalChampionBonus} onChange={(v) => upd((c) => { c.nationalChampionBonus = v; })} />
+            <NumField label="Desval./época (0–1)" step={0.01} value={cfg.decayPerYear} onChange={(v) => upd((c) => { c.decayPerYear = Math.max(0, Math.min(1, v)); })} />
+          </CardContent>
+        </Card>
+      </div>
+
+      <Accordion type="multiple" className="space-y-3">
+        <AccordionItem value="div" className="border rounded-lg px-4">
+          <AccordionTrigger>Pesos por divisão (SuperLeague)</AccordionTrigger>
+          <AccordionContent>
+            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3 pb-2">
+              {divisions.map((d) => (
+                <NumField key={d} label={`Div. ${d}`} step={0.01} value={cfg.divisionWeights[d] ?? 1} onChange={(v) => upd((c) => { c.divisionWeights[d] = v; })} />
+              ))}
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+
+        <AccordionItem value="pos" className="border rounded-lg px-4">
+          <AccordionTrigger>Pontos por posição</AccordionTrigger>
+          <AccordionContent>
+            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-3 pb-2">
+              {positions.map((p) => (
+                <NumField key={p} label={`${p}.º lugar`} value={cfg.positionPoints[p] ?? 0} onChange={(v) => upd((c) => { c.positionPoints[p] = v; })} />
+              ))}
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+
+        <AccordionItem value="titles" className="border rounded-lg px-4">
+          <AccordionTrigger>Pesos de títulos continentais</AccordionTrigger>
+          <AccordionContent>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pb-2">
+              {cfg.titleWeights.map((t, i) => (
+                <NumField key={t.match} label={t.label} value={t.weight} onChange={(v) => upd((c) => { c.titleWeights[i].weight = v; })} />
+              ))}
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
     </div>
   );
 }

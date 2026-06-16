@@ -1,19 +1,27 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchAllData } from "./fm-db";
 import { computeRankings } from "./fm-rankings";
+import { fetchActiveConfig } from "./fm-config-db";
 
 export function useRankings() {
   return useQuery({
     queryKey: ["fm-all-data"],
     queryFn: async () => {
-      const data = await fetchAllData();
-      const ranks = computeRankings({
-        standings: data.standings,
-        continental: data.continental,
-        coaches: data.coaches,
-        clubCountry: data.clubCountry,
-      });
-      return { data, ranks };
+      const [data, cfg] = await Promise.all([fetchAllData(), fetchActiveConfig()]);
+      const ranks = computeRankings(
+        {
+          standings: data.standings,
+          continental: data.continental,
+          coaches: data.coaches,
+          clubCountry: data.clubCountry,
+        },
+        cfg.config,
+      );
+      return { data, ranks, config: cfg.config, activeProfileId: cfg.activeId };
     },
   });
+}
+
+export function useActiveConfig() {
+  return useQuery({ queryKey: ["fm-config"], queryFn: fetchActiveConfig });
 }
