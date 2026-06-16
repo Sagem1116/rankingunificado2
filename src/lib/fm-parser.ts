@@ -41,12 +41,31 @@ export interface ParsedContinental {
   winner: string | null;
 }
 
+export interface ParsedPlayer {
+  idu: string | null;
+  name: string;
+  league: string | null;
+  club_name: string | null;
+  age: number | null;
+  gls: number;
+  ast: number;
+  salary: number;
+  ra: number;
+  rm: number;
+  ca: number;
+  cp: number;
+  vp: number;
+  info: string | null;
+  rec: string | null;
+}
+
 export interface ParsedData {
   teamCountry: { club: string; country: string | null }[];
   divisionWeights: { division_num: number; weight: number }[];
   standings: ParsedStanding[];
   coaches: ParsedCoach[];
   continental: ParsedContinental[];
+  players: ParsedPlayer[];
 }
 
 export interface ParseResult {
@@ -85,6 +104,31 @@ function toNum(v: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+function num0(v: unknown): number {
+  const n = toNum(v);
+  return n == null ? 0 : n;
+}
+
+function parseSalario(v: unknown): number {
+  if (v === null || v === undefined) return 0;
+  const s = String(v).replace(/€/g, "").replace(/p\/?\s*a/gi, "").replace(/\s/g, "").replace(/,/g, "").trim();
+  if (!s) return 0;
+  const n = parseFloat(s);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function parseVP(v: unknown): number {
+  if (v === null || v === undefined) return 0;
+  let s = String(v).replace(/€/g, "").replace(/\s/g, "").trim();
+  if (!s) return 0;
+  let mult = 1;
+  if (s.endsWith("M")) { mult = 1_000_000; s = s.slice(0, -1); }
+  else if (s.endsWith("m") || s.endsWith("k") || s.endsWith("K")) { mult = 1_000; s = s.slice(0, -1); }
+  s = s.replace(/,/g, ".");
+  const n = parseFloat(s);
+  return Number.isFinite(n) ? n * mult : 0;
+}
+
 function sheetRows(wb: XLSX.WorkBook, name: string): Record<string, unknown>[] | null {
   const target = wb.SheetNames.find((s) => norm(s) === norm(name));
   if (!target) return null;
@@ -119,7 +163,7 @@ export function parseWorkbook(buffer: ArrayBuffer, filename = ""): ParseResult {
   } catch {
     return {
       kind: "national",
-      data: { teamCountry: [], divisionWeights: [], standings: [], coaches: [], continental: [] },
+      data: { teamCountry: [], divisionWeights: [], standings: [], coaches: [], continental: [], players: [] },
       messages: [{ level: "red", text: "✖ Ficheiro corrompido ou ilegível" }],
       blocked: true,
     };
@@ -132,6 +176,7 @@ export function parseWorkbook(buffer: ArrayBuffer, filename = ""): ParseResult {
     standings: [],
     coaches: [],
     continental: [],
+    players: [],
   };
 
   // --- Equipas_Pais (superleague) ---
@@ -225,6 +270,53 @@ export function parseWorkbook(buffer: ArrayBuffer, filename = ""): ParseResult {
     }
   } else {
     messages.push({ level: "yellow", text: "⚠ Folha 'Treinadores' não encontrada — clubes ficam sem treinador associado" });
+  }
+
+  // --- Jogadores (superleague) ---
+  if (kind === "superleague") {
+    const jg = sheetRows(wb, "Jogadores");
+    if (jg && jg.length) {
+      const nameCol = findCol(jg[0], ["Nome", "Name"]);
+      const iduCol = findCol(jg[0], ["IDU", "UID"]);
+      const ligaCol = findCol(jg[0], ["Liga", "League"]);
+      const clubCol = findCol(jg[0], ["Clube", "Equipa"]);
+      const ageCol = findCol(jg[0], ["Idade", "Age"]);
+      const glsCol = findCol(jg[0], ["Gls", "Golos"]);
+      const astCol = findCol(jg[0], ["Ast", "Assist"]);
+      const salCol = findCol(jg[0], ["Salário", "Salario", "Salary"]);
+      const raCol = findCol(jg[0], ["R.A.", "RA"]);
+      const rmCol = findCol(jg[0], ["R.M.", "RM"]);
+      const caCol = findCol(jg[0], ["C.A.", "CA"]);
+      const cpCol = findCol(jg[0], ["C.P.", "CP"]);
+      const vpCol = findCol(jg[0], ["VP", "Valor"]);
+      const infCol = findCol(jg[0], ["Inf", "Info"]);
+      const recCol = findCol(jg[0], ["Rec"]);
+      if (nameCol) {
+        for (const r of jg) {
+          const name = String(r[nameCol] ?? "").trim();
+          if (!name || name.startsWith("http")) continue;
+          data.players.push({
+            idu: iduCol ? (String(r[iduCol] ?? "").trim() || null) : null,
+            name,
+            league: ligaCol ? (String(r[ligaCol] ?? "").trim() || null) : null,
+            club_name: clubCol ? (String(r[clubCol] ?? "").trim() || null) : null,
+            age: ageCol ? toNum(r[ageCol]) : null,
+            gls: glsCol ? num0(r[glsCol]) : 0,
+            ast: astCol ? num0(r[astCol]) : 0,
+            salary: salCol ? parseSalario(r[salCol]) : 0,
+            ra: raCol ? num0(r[raCol]) : 0,
+            rm: rmCol ? num0(r[rmCol]) : 0,
+            ca: caCol ? num0(r[caCol]) : 0,
+            cp: cpCol ? num0(r[cpCol]) : 0,
+            vp: vpCol ? parseVP(r[vpCol]) : 0,
+            info: infCol ? (String(r[infCol] ?? "").trim() || null) : null,
+            rec: recCol ? (String(r[recCol] ?? "").trim() || null) : null,
+          });
+        }
+      }
+    } else {
+      messages.push({ level: "yellow", text: "⚠ Folha 'Jogadores' não encontrada — páginas de jogadores ficam vazias para esta época" });
+    }
   }
 
   const blocked = messages.some((m) => m.level === "red");
