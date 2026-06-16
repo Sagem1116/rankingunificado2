@@ -174,7 +174,7 @@ function ConfigPage() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4">
         <Card>
           <CardHeader><CardTitle className="text-base">Pesos por competição (Fórmula Mundial)</CardTitle></CardHeader>
           <CardContent className="grid grid-cols-3 gap-3">
