@@ -59,12 +59,10 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="flex min-h-screen bg-background text-foreground">
       <aside className="hidden md:flex w-64 flex-col border-r border-border bg-sidebar shrink-0">
         <div className="flex items-center gap-2 px-5 h-16 border-b border-sidebar-border">
-          <div className="flex size-9 items-center justify-center rounded-lg bg-[image:var(--gradient-primary)] text-primary-foreground shadow-[var(--shadow-elegant)]">
-            <Star className="size-5" />
-          </div>
+          <Star className="size-6 text-gold gold-glow" />
           <div className="leading-tight">
-            <p className="text-sm font-bold tracking-tight">FM World</p>
-            <p className="text-[11px] text-muted-foreground">Rankings</p>
+            <p className="font-display text-sm font-bold gold-shimmer">FM World</p>
+            <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Rankings</p>
           </div>
         </div>
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
@@ -78,11 +76,11 @@ export function AppShell({ children }: { children: ReactNode }) {
                 className={cn(
                   "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                   active
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                    : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
+                    ? "bg-gold/10 text-gold border border-gold/30 shadow-[0_0_18px_-6px_oklch(0.82_0.17_88/0.5)]"
+                    : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-foreground",
                 )}
               >
-                <Icon className="size-4 shrink-0" />
+                <Icon className={cn("size-4 shrink-0", active && "text-gold")} />
                 {item.label}
               </Link>
             );
@@ -100,11 +98,11 @@ export function AppShell({ children }: { children: ReactNode }) {
                 className={cn(
                   "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                   active
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                    : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
+                    ? "bg-gold/10 text-gold border border-gold/30 shadow-[0_0_18px_-6px_oklch(0.82_0.17_88/0.5)]"
+                    : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-foreground",
                 )}
               >
-                <Icon className="size-4 shrink-0" />
+                <Icon className={cn("size-4 shrink-0", active && "text-gold")} />
                 {item.label}
               </Link>
             );
@@ -122,11 +120,11 @@ export function AppShell({ children }: { children: ReactNode }) {
                 className={cn(
                   "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                   active
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                    : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
+                    ? "bg-gold/10 text-gold border border-gold/30 shadow-[0_0_18px_-6px_oklch(0.82_0.17_88/0.5)]"
+                    : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-foreground",
                 )}
               >
-                <Icon className="size-4 shrink-0" />
+                <Icon className={cn("size-4 shrink-0", active && "text-gold")} />
                 {item.label}
               </Link>
             );
