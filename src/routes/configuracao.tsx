@@ -220,10 +220,34 @@ function ConfigPage() {
         <AccordionItem value="titles" className="border rounded-lg px-4">
           <AccordionTrigger>Pesos de títulos continentais</AccordionTrigger>
           <AccordionContent>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pb-2">
-              {cfg.titleWeights.map((t, i) => (
-                <NumField key={t.match} label={t.label} value={t.weight} onChange={(v) => upd((c) => { c.titleWeights[i].weight = v; })} />
-              ))}
+            <div className="space-y-3 pb-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {cfg.titleWeights.map((t, i) => (
+                  <div key={i} className="flex items-end gap-2 rounded-lg border border-border p-2">
+                    <div className="flex-1 space-y-1">
+                      <Label className="text-xs text-muted-foreground">Nome da competição</Label>
+                      <Input
+                        value={t.label}
+                        onChange={(e) => upd((c) => {
+                          c.titleWeights[i].label = e.target.value;
+                          c.titleWeights[i].match = e.target.value
+                            .normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+                        })}
+                        className="h-9"
+                      />
+                    </div>
+                    <div className="w-24">
+                      <NumField label="Peso" value={t.weight} onChange={(v) => upd((c) => { c.titleWeights[i].weight = v; })} />
+                    </div>
+                    <Button size="icon" variant="ghost" className="shrink-0" onClick={() => upd((c) => { c.titleWeights.splice(i, 1); })}>
+                      <Trash2 className="size-4 text-destructive" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+              <Button variant="outline" size="sm" onClick={() => upd((c) => { c.titleWeights.push({ match: "", label: "Nova competição", weight: 150 }); })}>
+                <Plus className="size-4" /> Adicionar competição
+              </Button>
             </div>
           </AccordionContent>
         </AccordionItem>
