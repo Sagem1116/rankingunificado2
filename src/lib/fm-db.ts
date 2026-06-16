@@ -38,6 +38,9 @@ export async function importSeason(parse: ParseResult, year: number, filename: s
   if (module === "national") {
     await supabase.from("continental_results").delete().eq("season_id", seasonId);
   }
+  if (module === "superleague") {
+    await supabase.from("players").delete().eq("season_id", seasonId);
+  }
 
   // 3. Upsert countries
   const countryNames = [...new Set(parse.data.teamCountry.map((t) => t.country).filter(Boolean) as string[])];
@@ -55,6 +58,7 @@ export async function importSeason(parse: ParseResult, year: number, filename: s
     if (c.team1) clubNames.add(c.team1);
     if (c.team2) clubNames.add(c.team2);
   });
+  parse.data.players.forEach((p) => { if (p.club_name) clubNames.add(p.club_name); });
   const clubCountryLookup = new Map(parse.data.teamCountry.map((t) => [t.club, t.country]));
   const clubPayload = [...clubNames].map((name) => {
     const country = clubCountryLookup.get(name);
@@ -130,6 +134,31 @@ export async function importSeason(parse: ParseResult, year: number, filename: s
     })
     .filter(Boolean) as Record<string, unknown>[];
   if (assignPayload.length) await chunkInsert("coach_assignments", assignPayload);
+
+  // 7b. Players (superleague snapshot)
+  if (module === "superleague" && parse.data.players.length) {
+    const playersPayload = parse.data.players.map((p) => ({
+      season_id: seasonId,
+      module,
+      idu: p.idu,
+      name: p.name,
+      league: p.league,
+      club_name: p.club_name,
+      club_id: p.club_name ? clubMap.get(p.club_name) ?? null : null,
+      age: p.age,
+      gls: p.gls,
+      ast: p.ast,
+      salary: p.salary,
+      ra: p.ra,
+      rm: p.rm,
+      ca: p.ca,
+      cp: p.cp,
+      vp: p.vp,
+      info: p.info,
+      rec: p.rec,
+    }));
+    await chunkInsert("players", playersPayload);
+  }
 
   // 8. Import log
   await supabase.from("imports").insert({
