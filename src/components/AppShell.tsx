@@ -17,6 +17,7 @@ import {
   Layers,
   Handshake,
   User,
+  Bug,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { ThemeToggle, useThemeInit } from "./ThemeToggle";
@@ -32,6 +33,8 @@ const NAV = [
   { to: "/treinadores", label: "Treinadores", icon: Users },
   { to: "/paises", label: "Países", icon: Globe2 },
   { to: "/hall-of-fame", label: "Hall of Fame", icon: Crown },
+  { to: "/debug-treinadores", label: "Debug · Treinadores", icon: Bug },
+  { to: "/debug-continentais", label: "Debug · Continentais", icon: Bug },
   { to: "/configuracao", label: "Configuração", icon: Settings },
 ] as const;
 

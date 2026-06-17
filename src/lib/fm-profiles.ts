@@ -51,6 +51,14 @@ export interface CoachSeasonRow {
   weighted: number;
 }
 
+export interface CoachContinentalTitle {
+  year: number;
+  competition: string;
+  club: string;
+  opponent: string | null;
+  role: "winner" | "runner-up";
+}
+
 export interface CoachProfile {
   name: string;
   seasons: CoachSeasonRow[];
@@ -59,6 +67,7 @@ export interface CoachProfile {
   titles: number;
   seasonsCount: number;
   chart: { year: number; weighted: number }[];
+  continentalTitles: CoachContinentalTitle[];
 }
 
 export interface CountryProfile {
@@ -213,12 +222,41 @@ export function buildCoachProfile(data: AllData, name: string, cfg: FmConfig = D
     };
   });
 
+  // Continental titles cross-reference: for each (year, club) the coach managed, find
+  // continental rows where the club appears as winner or runner-up. "C" marker on the
+  // standings already controls is_champion; for continental rows the winner is parsed
+  // from the score, so the title is attributed purely from the cross-reference.
+  const clubYears = new Set<string>();
+  for (const a of assigns) {
+    if (a.club_name) clubYears.add(`${a.season_year}|${a.club_name}`);
+  }
+  const continentalTitles: CoachContinentalTitle[] = [];
+  for (const c of data.continental) {
+    for (const club of [c.team1, c.team2]) {
+      if (!club) continue;
+      if (!clubYears.has(`${c.season_year}|${club}`)) continue;
+      const won = c.winner === club;
+      const opponent = c.team1 === club ? c.team2 : c.team1;
+      continentalTitles.push({
+        year: c.season_year,
+        competition: c.competition,
+        club,
+        opponent,
+        role: won ? "winner" : "runner-up",
+      });
+    }
+  }
+  continentalTitles.sort((a, b) => b.year - a.year || a.competition.localeCompare(b.competition));
+
   let totalWeighted = 0;
   let titles = 0;
   for (const s of seasons) {
     totalWeighted += s.weighted;
     if (s.champion) titles++;
   }
+  // Add continental wins to total title count
+  for (const t of continentalTitles) if (t.role === "winner") titles++;
+
   const clubs = [...new Set(assigns.map((a) => a.club_name).filter(Boolean) as string[])];
   const byYear = new Map<number, number>();
   for (const s of seasons) byYear.set(s.year, (byYear.get(s.year) ?? 0) + s.weighted);
@@ -231,6 +269,7 @@ export function buildCoachProfile(data: AllData, name: string, cfg: FmConfig = D
     titles,
     seasonsCount: new Set(seasons.map((s) => s.year)).size,
     chart: [...byYear.entries()].map(([year, weighted]) => ({ year, weighted })).sort((a, b) => a.year - b.year),
+    continentalTitles,
   };
 }
 

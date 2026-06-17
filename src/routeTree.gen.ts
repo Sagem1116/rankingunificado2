@@ -14,6 +14,8 @@ import { Route as RankingsRouteImport } from './routes/rankings'
 import { Route as PaisesRouteImport } from './routes/paises'
 import { Route as ImportarRouteImport } from './routes/importar'
 import { Route as HallOfFameRouteImport } from './routes/hall-of-fame'
+import { Route as DebugTreinadoresRouteImport } from './routes/debug-treinadores'
+import { Route as DebugContinentaisRouteImport } from './routes/debug-continentais'
 import { Route as ConfiguracaoRouteImport } from './routes/configuracao'
 import { Route as ClubesRouteImport } from './routes/clubes'
 import { Route as IndexRouteImport } from './routes/index'
@@ -56,6 +58,16 @@ const ImportarRoute = ImportarRouteImport.update({
 const HallOfFameRoute = HallOfFameRouteImport.update({
   id: '/hall-of-fame',
   path: '/hall-of-fame',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DebugTreinadoresRoute = DebugTreinadoresRouteImport.update({
+  id: '/debug-treinadores',
+  path: '/debug-treinadores',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DebugContinentaisRoute = DebugContinentaisRouteImport.update({
+  id: '/debug-continentais',
+  path: '/debug-continentais',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ConfiguracaoRoute = ConfiguracaoRouteImport.update({
@@ -158,6 +170,8 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/clubes': typeof ClubesRouteWithChildren
   '/configuracao': typeof ConfiguracaoRoute
+  '/debug-continentais': typeof DebugContinentaisRoute
+  '/debug-treinadores': typeof DebugTreinadoresRoute
   '/hall-of-fame': typeof HallOfFameRoute
   '/importar': typeof ImportarRoute
   '/paises': typeof PaisesRouteWithChildren
@@ -182,6 +196,8 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/configuracao': typeof ConfiguracaoRoute
+  '/debug-continentais': typeof DebugContinentaisRoute
+  '/debug-treinadores': typeof DebugTreinadoresRoute
   '/hall-of-fame': typeof HallOfFameRoute
   '/importar': typeof ImportarRoute
   '/rankings': typeof RankingsRoute
@@ -206,6 +222,8 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/clubes': typeof ClubesRouteWithChildren
   '/configuracao': typeof ConfiguracaoRoute
+  '/debug-continentais': typeof DebugContinentaisRoute
+  '/debug-treinadores': typeof DebugTreinadoresRoute
   '/hall-of-fame': typeof HallOfFameRoute
   '/importar': typeof ImportarRoute
   '/paises': typeof PaisesRouteWithChildren
@@ -233,6 +251,8 @@ export interface FileRouteTypes {
     | '/'
     | '/clubes'
     | '/configuracao'
+    | '/debug-continentais'
+    | '/debug-treinadores'
     | '/hall-of-fame'
     | '/importar'
     | '/paises'
@@ -257,6 +277,8 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/configuracao'
+    | '/debug-continentais'
+    | '/debug-treinadores'
     | '/hall-of-fame'
     | '/importar'
     | '/rankings'
@@ -280,6 +302,8 @@ export interface FileRouteTypes {
     | '/'
     | '/clubes'
     | '/configuracao'
+    | '/debug-continentais'
+    | '/debug-treinadores'
     | '/hall-of-fame'
     | '/importar'
     | '/paises'
@@ -306,6 +330,8 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ClubesRoute: typeof ClubesRouteWithChildren
   ConfiguracaoRoute: typeof ConfiguracaoRoute
+  DebugContinentaisRoute: typeof DebugContinentaisRoute
+  DebugTreinadoresRoute: typeof DebugTreinadoresRoute
   HallOfFameRoute: typeof HallOfFameRoute
   ImportarRoute: typeof ImportarRoute
   PaisesRoute: typeof PaisesRouteWithChildren
@@ -357,6 +383,20 @@ declare module '@tanstack/react-router' {
       path: '/hall-of-fame'
       fullPath: '/hall-of-fame'
       preLoaderRoute: typeof HallOfFameRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/debug-treinadores': {
+      id: '/debug-treinadores'
+      path: '/debug-treinadores'
+      fullPath: '/debug-treinadores'
+      preLoaderRoute: typeof DebugTreinadoresRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/debug-continentais': {
+      id: '/debug-continentais'
+      path: '/debug-continentais'
+      fullPath: '/debug-continentais'
+      preLoaderRoute: typeof DebugContinentaisRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/configuracao': {
@@ -532,6 +572,8 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ClubesRoute: ClubesRouteWithChildren,
   ConfiguracaoRoute: ConfiguracaoRoute,
+  DebugContinentaisRoute: DebugContinentaisRoute,
+  DebugTreinadoresRoute: DebugTreinadoresRoute,
   HallOfFameRoute: HallOfFameRoute,
   ImportarRoute: ImportarRoute,
   PaisesRoute: PaisesRouteWithChildren,
@@ -550,13 +592,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

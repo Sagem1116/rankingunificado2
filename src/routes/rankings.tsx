@@ -1,15 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { Loader2, Trophy, FileSpreadsheet, FileText } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Link } from "@tanstack/react-router";
 import { useRankings } from "@/lib/useRankings";
-import { rankBy, computeRankings, type RankingEntry } from "@/lib/fm-rankings";
+import { rankBy, computeRankings } from "@/lib/fm-rankings";
 import { exportRankingsExcel, exportRankingsPDF, type ExportSection } from "@/lib/fm-export";
 import type { ComputeResult } from "@/lib/fm-rankings";
-import { useEntrySort, SortableTh } from "@/components/SortableTh";
+import { SeasonsRankTable } from "@/components/SeasonsRankTable";
 
 function buildSections(ranks: ComputeResult, mode: "weighted" | "raw"): ExportSection[] {
   return [
@@ -46,11 +44,15 @@ function RankingsPage() {
     if (!data) return null;
     if (moduleFilter === "all") return data.ranks;
     const d = data.data;
+    // Continental wins are stored as a separate dataset (no "continental" coach assignments
+    // exist — coaches are imported as national/superleague). To attribute continental
+    // titles to coaches we must keep ALL coach assignments and only restrict standings.
+    const isContinental = moduleFilter === "continental";
     return computeRankings(
       {
-        standings: d.standings.filter((s) => s.module === moduleFilter),
-        continental: moduleFilter === "continental" ? d.continental : [],
-        coaches: d.coaches.filter((c) => c.module === moduleFilter),
+        standings: isContinental ? [] : d.standings.filter((s) => s.module === moduleFilter),
+        continental: isContinental ? d.continental : [],
+        coaches: isContinental ? d.coaches : d.coaches.filter((c) => c.module === moduleFilter),
         clubCountry: d.clubCountry,
       },
       data.config,
@@ -115,52 +117,16 @@ function RankingsPage() {
           <TabsTrigger value="countries">Países</TabsTrigger>
         </TabsList>
         <TabsContent value="clubs">
-          <RankTable entries={ranks.clubs} mode={mode} kind="clubes" />
+          <SeasonsRankTable entries={ranks.clubs} evolution={ranks.evolution.clubs} years={ranks.years} mode={mode} kind="clubes" />
         </TabsContent>
         <TabsContent value="coaches">
-          <RankTable entries={ranks.coaches} mode={mode} kind="treinadores" />
+          <SeasonsRankTable entries={ranks.coaches} evolution={ranks.evolution.coaches} years={ranks.years} mode={mode} kind="treinadores" />
         </TabsContent>
         <TabsContent value="countries">
-          <RankTable entries={ranks.countries} mode={mode} kind="paises" />
+          <SeasonsRankTable entries={ranks.countries} evolution={ranks.evolution.countries} years={ranks.years} mode={mode} kind="paises" />
         </TabsContent>
       </Tabs>
     </div>
   );
 }
 
-function RankTable({ entries, mode, kind }: { entries: RankingEntry[]; mode: "weighted" | "raw"; kind: "clubes" | "treinadores" | "paises" }) {
-  const to = kind === "clubes" ? "/clubes/$name" : kind === "treinadores" ? "/treinadores/$name" : "/paises/$name";
-  const { sorted, sortKey, setSortKey } = useEntrySort(entries, mode);
-  return (
-    <Card className="mt-4">
-      <CardContent className="p-0">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border text-muted-foreground text-xs uppercase">
-              <th className="text-left p-3 w-12">#</th>
-              <th className="text-left p-3">Nome</th>
-              <SortableTh label="Títulos" active={sortKey === "titles"} onClick={() => setSortKey("titles")} className="text-right" />
-              <SortableTh label="Pontos" active={sortKey === "points"} onClick={() => setSortKey("points")} className="text-right" />
-            </tr>
-          </thead>
-          <tbody>
-            {sorted.slice(0, 300).map((e, i) => (
-              <tr key={e.name} className="border-b border-border/50 hover:bg-muted/50 transition-colors">
-                <td className={`p-3 font-bold ${i < 3 ? "text-gold" : "text-muted-foreground"}`}>{i + 1}</td>
-                <td className="p-3 font-medium">
-                  <Link to={to} params={{ name: e.name }} className="hover:text-primary hover:underline">
-                    {e.name}
-                  </Link>
-                </td>
-                <td className="p-3 text-right tabular-nums">{e.titles}</td>
-                <td className="p-3 text-right font-semibold tabular-nums">
-                  {Math.round(mode === "raw" ? e.raw : e.weighted).toLocaleString("pt-PT")}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </CardContent>
-    </Card>
-  );
-}

@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo } from "react";
-import { Loader2, Users, ArrowLeft, Crown } from "lucide-react";
+import { Loader2, Users, ArrowLeft, Crown, Trophy, Medal } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useRankings } from "@/lib/useRankings";
@@ -65,6 +65,68 @@ function CoachProfilePage() {
       <Card>
         <CardHeader><CardTitle className="text-base">Evolução histórica</CardTitle></CardHeader>
         <CardContent><EvolutionChart data={profile.chart} /></CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Trophy className="size-4 text-gold" /> Títulos Continentais
+            <Badge variant="outline" className="ml-2">
+              {profile.continentalTitles.filter((t) => t.role === "winner").length} vencidos ·{" "}
+              {profile.continentalTitles.filter((t) => t.role === "runner-up").length} finais
+            </Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          {profile.continentalTitles.length === 0 ? (
+            <p className="px-4 pb-4 text-sm text-muted-foreground">
+              Sem presenças em finais continentais cruzadas com este treinador.
+            </p>
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border text-muted-foreground text-xs uppercase">
+                  <th className="text-left p-3">Época</th>
+                  <th className="text-left p-3">Competição</th>
+                  <th className="text-left p-3">Clube</th>
+                  <th className="text-left p-3">Adversário</th>
+                  <th className="text-right p-3">Resultado</th>
+                </tr>
+              </thead>
+              <tbody>
+                {profile.continentalTitles.map((t, i) => (
+                  <tr key={i} className="border-b border-border/50 hover:bg-muted/50">
+                    <td className="p-3 tabular-nums">{t.year}</td>
+                    <td className="p-3">{t.competition}</td>
+                    <td className="p-3">
+                      <Link to="/clubes/$name" params={{ name: t.club }} className="hover:text-primary hover:underline">
+                        {t.club}
+                      </Link>
+                    </td>
+                    <td className="p-3 text-muted-foreground">
+                      {t.opponent ? (
+                        <Link to="/clubes/$name" params={{ name: t.opponent }} className="hover:text-primary hover:underline">
+                          {t.opponent}
+                        </Link>
+                      ) : "—"}
+                    </td>
+                    <td className="p-3 text-right">
+                      {t.role === "winner" ? (
+                        <Badge className="bg-gold/15 text-gold border-gold/40 gap-1">
+                          <Crown className="size-3" /> Vencedor
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="gap-1">
+                          <Medal className="size-3" /> Finalista
+                        </Badge>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </CardContent>
       </Card>
 
       <Card>
