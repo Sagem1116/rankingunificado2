@@ -104,7 +104,11 @@ export function configToRows(profileId: string, cfg: FmConfig): ConfigRow[] {
   for (const t of cfg.titleWeights) rows.push({ profile_id: profileId, category: "title", key: t.match, value: t.weight });
   rows.push({ profile_id: profileId, category: "bonus", key: "national", value: cfg.nationalChampionBonus });
   rows.push({ profile_id: profileId, category: "bonus", key: "superleague", value: cfg.superleagueChampionBonus });
-  rows.push({ profile_id: profileId, category: "meta", key: "decayPerYear", value: cfg.decayPerYear });
+  rows.push({ profile_id: profileId, category: "decay", key: "last", value: cfg.decayMultipliers.last });
+  rows.push({ profile_id: profileId, category: "decay", key: "age1", value: cfg.decayMultipliers.age1 });
+  rows.push({ profile_id: profileId, category: "decay", key: "age2", value: cfg.decayMultipliers.age2 });
+  rows.push({ profile_id: profileId, category: "decay", key: "age3", value: cfg.decayMultipliers.age3 });
+  rows.push({ profile_id: profileId, category: "decay", key: "older", value: cfg.decayMultipliers.older });
   return rows;
 }
 
