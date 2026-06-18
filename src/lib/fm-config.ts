@@ -149,7 +149,7 @@ export function rowsToConfig(rows: { category: string; key: string; value: numbe
         }
         break;
       case "decay":
-        if (r.key in cfg.decayMultipliers) (cfg.decayMultipliers as Record<string, number>)[r.key] = v;
+        if (r.key in cfg.decayMultipliers) (cfg.decayMultipliers as unknown as Record<string, number>)[r.key] = v;
         break;
     }
   }
