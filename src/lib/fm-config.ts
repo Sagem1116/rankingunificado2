@@ -7,6 +7,14 @@ import {
   SUPERLEAGUE_CHAMPION_BONUS,
 } from "./fm-defaults";
 
+export interface DecayMultipliers {
+  last: number;   // última época (age 0)
+  age1: number;   // há 1 época
+  age2: number;   // há 2 épocas
+  age3: number;   // há 3 épocas
+  older: number;  // épocas mais antigas (4+)
+}
+
 export interface FmConfig {
   positionPoints: Record<number, number>;
   divisionWeights: Record<number, number>;
@@ -14,8 +22,16 @@ export interface FmConfig {
   titleWeights: { match: string; label: string; weight: number }[];
   nationalChampionBonus: number;
   superleagueChampionBonus: number;
-  decayPerYear: number; // 1 = sem desvalorização; 0.97 = -3%/época mais antiga
+  decayMultipliers: DecayMultipliers;
 }
+
+export const DEFAULT_DECAY: DecayMultipliers = {
+  last: 1,
+  age1: 0.85,
+  age2: 0.7,
+  age3: 0.55,
+  older: 0.4,
+};
 
 export const DEFAULT_CONFIG: FmConfig = {
   positionPoints: { ...DEFAULT_POSITION_POINTS },
@@ -24,7 +40,7 @@ export const DEFAULT_CONFIG: FmConfig = {
   titleWeights: DEFAULT_TITLE_WEIGHTS.map((t) => ({ ...t })),
   nationalChampionBonus: NATIONAL_CHAMPION_BONUS,
   superleagueChampionBonus: SUPERLEAGUE_CHAMPION_BONUS,
-  decayPerYear: 1,
+  decayMultipliers: { ...DEFAULT_DECAY },
 };
 
 export function cloneConfig(c: FmConfig): FmConfig {
@@ -35,7 +51,7 @@ export function cloneConfig(c: FmConfig): FmConfig {
     titleWeights: c.titleWeights.map((t) => ({ ...t })),
     nationalChampionBonus: c.nationalChampionBonus,
     superleagueChampionBonus: c.superleagueChampionBonus,
-    decayPerYear: c.decayPerYear,
+    decayMultipliers: { ...c.decayMultipliers },
   };
 }
 
