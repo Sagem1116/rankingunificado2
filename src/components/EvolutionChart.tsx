@@ -152,10 +152,12 @@ export function EvolutionChart({ data, series, showModeToggle = true, mode: extM
             }}
             labelStyle={{ color: "var(--foreground)" }}
             labelFormatter={(y) => `Época ${y}`}
-            formatter={(v: number | null, name: string) => {
-              if (v == null) return ["—", name];
-              if (name.startsWith("Posição")) return [`#${v}`, name];
-              return [fmtPts(v), name];
+            formatter={(v, name) => {
+              const n = String(name);
+              if (v == null) return ["—", n];
+              const num = Number(v);
+              if (n.includes("Posição")) return [`#${num}`, n];
+              return [fmtPts(num), n];
             }}
           />
           <Legend wrapperStyle={{ fontSize: 11 }} />
