@@ -17,6 +17,7 @@ export interface ClubSeasonRow {
   position: number | null;
   is_champion: boolean;
   weighted: number;
+  raw: number;
 }
 
 export interface ContinentalAppearance {
@@ -29,7 +30,9 @@ export interface ContinentalAppearance {
 export interface ChartPoint {
   year: number;
   weighted: number;
-  position: number | null;
+  raw: number;
+  positionWeighted: number | null;
+  positionRaw: number | null;
 }
 
 export interface ClubProfile {
@@ -55,6 +58,7 @@ export interface CoachSeasonRow {
   club_name: string | null;
   champion: boolean;
   weighted: number;
+  raw: number;
 }
 
 export interface CoachContinentalTitle {
@@ -70,6 +74,7 @@ export interface CoachProfile {
   seasons: CoachSeasonRow[];
   clubs: string[];
   totalWeighted: number;
+  totalRaw: number;
   titles: number;
   seasonsCount: number;
   chart: ChartPoint[];
@@ -78,8 +83,9 @@ export interface CoachProfile {
 
 export interface CountryProfile {
   name: string;
-  clubs: { name: string; weighted: number; titles: number }[];
+  clubs: { name: string; weighted: number; raw: number; titles: number }[];
   totalWeighted: number;
+  totalRaw: number;
   titles: number;
   seasonsActive: number;
   chart: ChartPoint[];
@@ -108,6 +114,18 @@ function standingWeighted(
   return weighted;
 }
 
+function standingRaw(
+  cfg: FmConfig,
+  s: { module: Module; position: number | null; is_champion: boolean },
+): number {
+  let raw = cfgPositionPoints(cfg, s.position);
+  if (s.is_champion) {
+    const bonus = s.module === "superleague" ? cfg.superleagueChampionBonus : cfg.nationalChampionBonus;
+    raw += bonus * 0.5;
+  }
+  return raw;
+}
+
 function latestYearOf(data: AllData): number {
   const ys = [
     ...data.standings.map((s) => s.season_year),
@@ -124,20 +142,25 @@ const addYM = (m: YearMap, year: number, name: string, w: number) => {
 };
 
 interface YearMaps {
-  clubYear: YearMap;
-  countryYear: YearMap;
-  coachYear: YearMap;
+  clubYearW: YearMap;
+  clubYearR: YearMap;
+  countryYearW: YearMap;
+  countryYearR: YearMap;
+  coachYearW: YearMap;
+  coachYearR: YearMap;
 }
 
-let _yearMapsCache: { key: unknown; maps: YearMaps } | null = null;
+let _yearMapsCache: { key: unknown; cfg: unknown; maps: YearMaps } | null = null;
 function buildYearMaps(data: AllData, cfg: FmConfig): YearMaps {
-  if (_yearMapsCache && _yearMapsCache.key === data && (_yearMapsCache as { cfg?: unknown }).cfg === cfg) {
+  if (_yearMapsCache && _yearMapsCache.key === data && _yearMapsCache.cfg === cfg) {
     return _yearMapsCache.maps;
   }
   const latestYear = latestYearOf(data);
-  const clubYear: YearMap = new Map();
+  const clubYearW: YearMap = new Map();
+  const clubYearR: YearMap = new Map();
   for (const s of data.standings) {
-    addYM(clubYear, s.season_year, s.club_name, standingWeighted(cfg, latestYear, s));
+    addYM(clubYearW, s.season_year, s.club_name, standingWeighted(cfg, latestYear, s));
+    addYM(clubYearR, s.season_year, s.club_name, standingRaw(cfg, s));
   }
   for (const c of data.continental) {
     const { weight } = cfgTitleWeight(cfg, c.competition);
@@ -145,31 +168,43 @@ function buildYearMaps(data: AllData, cfg: FmConfig): YearMaps {
     for (const team of [c.team1, c.team2]) {
       if (!team) continue;
       const won = c.winner === team;
-      addYM(clubYear, c.season_year, team, weight * compW * (won ? 1 : 0.3));
+      addYM(clubYearW, c.season_year, team, weight * compW * (won ? 1 : 0.3));
+      addYM(clubYearR, c.season_year, team, won ? 200 : 50);
     }
   }
-  const countryYear: YearMap = new Map();
-  for (const [year, inner] of clubYear) {
+  const countryYearW: YearMap = new Map();
+  const countryYearR: YearMap = new Map();
+  for (const [year, inner] of clubYearW) {
     for (const [club, w] of inner) {
       const country = data.clubCountry[club];
       if (!country) continue;
-      addYM(countryYear, year, country, w);
+      addYM(countryYearW, year, country, w);
     }
   }
-  const sKey = new Map<string, number>();
+  for (const [year, inner] of clubYearR) {
+    for (const [club, w] of inner) {
+      const country = data.clubCountry[club];
+      if (!country) continue;
+      addYM(countryYearR, year, country, w);
+    }
+  }
+  const sKeyW = new Map<string, number>();
+  const sKeyR = new Map<string, number>();
   for (const s of data.standings) {
     const k = `${s.season_year}|${s.module}|${s.club_name}`;
-    sKey.set(k, (sKey.get(k) ?? 0) + standingWeighted(cfg, latestYear, s));
+    sKeyW.set(k, (sKeyW.get(k) ?? 0) + standingWeighted(cfg, latestYear, s));
+    sKeyR.set(k, (sKeyR.get(k) ?? 0) + standingRaw(cfg, s));
   }
-  const coachYear: YearMap = new Map();
+  const coachYearW: YearMap = new Map();
+  const coachYearR: YearMap = new Map();
   for (const a of data.coaches) {
     if (!a.club_name) continue;
     const k = `${a.season_year}|${a.module}|${a.club_name}`;
-    addYM(coachYear, a.season_year, a.name, sKey.get(k) ?? 0);
+    addYM(coachYearW, a.season_year, a.name, sKeyW.get(k) ?? 0);
+    addYM(coachYearR, a.season_year, a.name, sKeyR.get(k) ?? 0);
   }
-  const maps = { clubYear, countryYear, coachYear };
-  _yearMapsCache = { key: data, maps } as unknown as { key: unknown; maps: YearMaps };
-  (_yearMapsCache as { cfg?: unknown }).cfg = cfg;
+  const maps = { clubYearW, clubYearR, countryYearW, countryYearR, coachYearW, coachYearR };
+  _yearMapsCache = { key: data, cfg, maps };
   return maps;
 }
 
@@ -186,12 +221,21 @@ function rankIn(inner: Map<string, number> | undefined, name: string): number | 
 }
 
 function chartWithRanks(
-  yearWeights: Map<number, number>,
-  yearMap: YearMap,
+  yearW: Map<number, number>,
+  yearR: Map<number, number>,
+  yearMapW: YearMap,
+  yearMapR: YearMap,
   name: string,
 ): ChartPoint[] {
-  return [...yearWeights.entries()]
-    .map(([year, weighted]) => ({ year, weighted, position: rankIn(yearMap.get(year), name) }))
+  const years = new Set<number>([...yearW.keys(), ...yearR.keys()]);
+  return [...years]
+    .map((year) => ({
+      year,
+      weighted: yearW.get(year) ?? 0,
+      raw: yearR.get(year) ?? 0,
+      positionWeighted: rankIn(yearMapW.get(year), name),
+      positionRaw: rankIn(yearMapR.get(year), name),
+    }))
     .sort((a, b) => a.year - b.year);
 }
 
@@ -208,16 +252,12 @@ export function buildClubProfile(data: AllData, name: string, cfg: FmConfig = DE
     position: s.position,
     is_champion: s.is_champion,
     weighted: standingWeighted(cfg, latestYear, s),
+    raw: standingRaw(cfg, s),
   }));
 
   const continental: ContinentalAppearance[] = cont.map((c) => {
     const opponent = c.team1 === name ? c.team2 : c.team1;
-    return {
-      year: c.season_year,
-      competition: c.competition,
-      opponent,
-      won: c.winner === name,
-    };
+    return { year: c.season_year, competition: c.competition, opponent, won: c.winner === name };
   });
 
   const coaches = data.coaches
@@ -231,7 +271,7 @@ export function buildClubProfile(data: AllData, name: string, cfg: FmConfig = DE
   let bestPosition: number | null = null;
   for (const s of seasons) {
     totalWeighted += s.weighted;
-    totalRaw += cfgPositionPoints(cfg, s.position);
+    totalRaw += s.raw;
     if (s.is_champion) {
       if (s.module === "superleague") superleagueTitles++;
       else nationalTitles++;
@@ -252,14 +292,19 @@ export function buildClubProfile(data: AllData, name: string, cfg: FmConfig = DE
     }
   }
 
-  const byYear = new Map<number, number>();
-  for (const s of seasons) byYear.set(s.year, (byYear.get(s.year) ?? 0) + s.weighted);
+  const byYearW = new Map<number, number>();
+  const byYearR = new Map<number, number>();
+  for (const s of seasons) {
+    byYearW.set(s.year, (byYearW.get(s.year) ?? 0) + s.weighted);
+    byYearR.set(s.year, (byYearR.get(s.year) ?? 0) + s.raw);
+  }
   for (const c of continental) {
     const { weight } = cfgTitleWeight(cfg, c.competition);
     const compW = cfg.competitionWeights.continental * cfgDecay(cfg, c.year, latestYear);
-    byYear.set(c.year, (byYear.get(c.year) ?? 0) + weight * compW * (c.won ? 1 : 0.3));
+    byYearW.set(c.year, (byYearW.get(c.year) ?? 0) + weight * compW * (c.won ? 1 : 0.3));
+    byYearR.set(c.year, (byYearR.get(c.year) ?? 0) + (c.won ? 200 : 50));
   }
-  const { clubYear } = buildYearMaps(data, cfg);
+  const { clubYearW, clubYearR } = buildYearMaps(data, cfg);
 
   return {
     name,
@@ -275,7 +320,7 @@ export function buildClubProfile(data: AllData, name: string, cfg: FmConfig = DE
     continentalTitles,
     bestPosition,
     seasonsCount: new Set([...seasons.map((s) => s.year), ...continental.map((c) => c.year)]).size,
-    chart: chartWithRanks(byYear, clubYear, name),
+    chart: chartWithRanks(byYearW, byYearR, clubYearW, clubYearR, name),
   };
 }
 
@@ -289,10 +334,12 @@ export function buildCoachProfile(data: AllData, name: string, cfg: FmConfig = D
     if (s.is_champion) championKey.add(`${s.season_year}|${s.module}|${s.club_name}`);
   }
 
-  const ptKey = new Map<string, number>();
+  const ptKeyW = new Map<string, number>();
+  const ptKeyR = new Map<string, number>();
   for (const s of data.standings) {
     const k = `${s.season_year}|${s.module}|${s.club_name}`;
-    ptKey.set(k, (ptKey.get(k) ?? 0) + standingWeighted(cfg, latestYear, s));
+    ptKeyW.set(k, (ptKeyW.get(k) ?? 0) + standingWeighted(cfg, latestYear, s));
+    ptKeyR.set(k, (ptKeyR.get(k) ?? 0) + standingRaw(cfg, s));
   }
 
   const seasons: CoachSeasonRow[] = assigns.map((a) => {
@@ -302,7 +349,8 @@ export function buildCoachProfile(data: AllData, name: string, cfg: FmConfig = D
       module: a.module,
       club_name: a.club_name,
       champion: a.club_name ? championKey.has(k) : false,
-      weighted: a.club_name ? ptKey.get(k) ?? 0 : 0,
+      weighted: a.club_name ? ptKeyW.get(k) ?? 0 : 0,
+      raw: a.club_name ? ptKeyR.get(k) ?? 0 : 0,
     };
   });
 
@@ -329,27 +377,34 @@ export function buildCoachProfile(data: AllData, name: string, cfg: FmConfig = D
   continentalTitles.sort((a, b) => b.year - a.year || a.competition.localeCompare(b.competition));
 
   let totalWeighted = 0;
+  let totalRaw = 0;
   let titles = 0;
   for (const s of seasons) {
     totalWeighted += s.weighted;
+    totalRaw += s.raw;
     if (s.champion) titles++;
   }
   for (const t of continentalTitles) if (t.role === "winner") titles++;
 
   const clubs = [...new Set(assigns.map((a) => a.club_name).filter(Boolean) as string[])];
-  const byYear = new Map<number, number>();
-  for (const s of seasons) byYear.set(s.year, (byYear.get(s.year) ?? 0) + s.weighted);
+  const byYearW = new Map<number, number>();
+  const byYearR = new Map<number, number>();
+  for (const s of seasons) {
+    byYearW.set(s.year, (byYearW.get(s.year) ?? 0) + s.weighted);
+    byYearR.set(s.year, (byYearR.get(s.year) ?? 0) + s.raw);
+  }
 
-  const { coachYear } = buildYearMaps(data, cfg);
+  const { coachYearW, coachYearR } = buildYearMaps(data, cfg);
 
   return {
     name,
     seasons: seasons.sort((a, b) => b.year - a.year),
     clubs,
     totalWeighted,
+    totalRaw,
     titles,
     seasonsCount: new Set(seasons.map((s) => s.year)).size,
-    chart: chartWithRanks(byYear, coachYear, name),
+    chart: chartWithRanks(byYearW, byYearR, coachYearW, coachYearR, name),
     continentalTitles,
   };
 }
@@ -362,18 +417,22 @@ export function buildCountryProfile(data: AllData, name: string, cfg: FmConfig =
   if (clubNames.length === 0) return null;
   const clubSet = new Set(clubNames);
 
-  const clubAgg = new Map<string, { weighted: number; titles: number }>();
-  const byYear = new Map<number, number>();
+  const clubAgg = new Map<string, { weighted: number; raw: number; titles: number }>();
+  const byYearW = new Map<number, number>();
+  const byYearR = new Map<number, number>();
   const years = new Set<number>();
 
   for (const s of data.standings) {
     if (!clubSet.has(s.club_name)) continue;
     const w = standingWeighted(cfg, latestYear, s);
-    const cur = clubAgg.get(s.club_name) ?? { weighted: 0, titles: 0 };
+    const r = standingRaw(cfg, s);
+    const cur = clubAgg.get(s.club_name) ?? { weighted: 0, raw: 0, titles: 0 };
     cur.weighted += w;
+    cur.raw += r;
     if (s.is_champion) cur.titles++;
     clubAgg.set(s.club_name, cur);
-    byYear.set(s.season_year, (byYear.get(s.season_year) ?? 0) + w);
+    byYearW.set(s.season_year, (byYearW.get(s.season_year) ?? 0) + w);
+    byYearR.set(s.season_year, (byYearR.get(s.season_year) ?? 0) + r);
     years.add(s.season_year);
   }
   for (const c of data.continental) {
@@ -383,26 +442,30 @@ export function buildCountryProfile(data: AllData, name: string, cfg: FmConfig =
     const compW = cfg.competitionWeights.continental * cfgDecay(cfg, c.season_year, latestYear);
     const won = c.winner === club;
     const w = weight * compW * (won ? 1 : 0.3);
-    const cur = clubAgg.get(club) ?? { weighted: 0, titles: 0 };
+    const r = won ? 200 : 50;
+    const cur = clubAgg.get(club) ?? { weighted: 0, raw: 0, titles: 0 };
     cur.weighted += w;
+    cur.raw += r;
     if (won) cur.titles++;
     clubAgg.set(club, cur);
-    byYear.set(c.season_year, (byYear.get(c.season_year) ?? 0) + w);
+    byYearW.set(c.season_year, (byYearW.get(c.season_year) ?? 0) + w);
+    byYearR.set(c.season_year, (byYearR.get(c.season_year) ?? 0) + r);
     years.add(c.season_year);
   }
 
   const clubs = [...clubAgg.entries()]
-    .map(([n, v]) => ({ name: n, weighted: v.weighted, titles: v.titles }))
+    .map(([n, v]) => ({ name: n, weighted: v.weighted, raw: v.raw, titles: v.titles }))
     .sort((a, b) => b.weighted - a.weighted);
 
-  const { countryYear } = buildYearMaps(data, cfg);
+  const { countryYearW, countryYearR } = buildYearMaps(data, cfg);
 
   return {
     name,
     clubs,
     totalWeighted: clubs.reduce((a, c) => a + c.weighted, 0),
+    totalRaw: clubs.reduce((a, c) => a + c.raw, 0),
     titles: clubs.reduce((a, c) => a + c.titles, 0),
     seasonsActive: years.size,
-    chart: chartWithRanks(byYear, countryYear, name),
+    chart: chartWithRanks(byYearW, byYearR, countryYearW, countryYearR, name),
   };
 }

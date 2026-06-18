@@ -17,6 +17,7 @@ import { Route as HallOfFameRouteImport } from './routes/hall-of-fame'
 import { Route as DebugTreinadoresRouteImport } from './routes/debug-treinadores'
 import { Route as DebugContinentaisRouteImport } from './routes/debug-continentais'
 import { Route as ConfiguracaoRouteImport } from './routes/configuracao'
+import { Route as CompararRouteImport } from './routes/comparar'
 import { Route as ClubesRouteImport } from './routes/clubes'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as TreinadoresIndexRouteImport } from './routes/treinadores.index'
@@ -73,6 +74,11 @@ const DebugContinentaisRoute = DebugContinentaisRouteImport.update({
 const ConfiguracaoRoute = ConfiguracaoRouteImport.update({
   id: '/configuracao',
   path: '/configuracao',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CompararRoute = CompararRouteImport.update({
+  id: '/comparar',
+  path: '/comparar',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ClubesRoute = ClubesRouteImport.update({
@@ -169,6 +175,7 @@ const ClubesNameRoute = ClubesNameRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/clubes': typeof ClubesRouteWithChildren
+  '/comparar': typeof CompararRoute
   '/configuracao': typeof ConfiguracaoRoute
   '/debug-continentais': typeof DebugContinentaisRoute
   '/debug-treinadores': typeof DebugTreinadoresRoute
@@ -195,6 +202,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/comparar': typeof CompararRoute
   '/configuracao': typeof ConfiguracaoRoute
   '/debug-continentais': typeof DebugContinentaisRoute
   '/debug-treinadores': typeof DebugTreinadoresRoute
@@ -221,6 +229,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/clubes': typeof ClubesRouteWithChildren
+  '/comparar': typeof CompararRoute
   '/configuracao': typeof ConfiguracaoRoute
   '/debug-continentais': typeof DebugContinentaisRoute
   '/debug-treinadores': typeof DebugTreinadoresRoute
@@ -250,6 +259,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/clubes'
+    | '/comparar'
     | '/configuracao'
     | '/debug-continentais'
     | '/debug-treinadores'
@@ -276,6 +286,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/comparar'
     | '/configuracao'
     | '/debug-continentais'
     | '/debug-treinadores'
@@ -301,6 +312,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/clubes'
+    | '/comparar'
     | '/configuracao'
     | '/debug-continentais'
     | '/debug-treinadores'
@@ -329,6 +341,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ClubesRoute: typeof ClubesRouteWithChildren
+  CompararRoute: typeof CompararRoute
   ConfiguracaoRoute: typeof ConfiguracaoRoute
   DebugContinentaisRoute: typeof DebugContinentaisRoute
   DebugTreinadoresRoute: typeof DebugTreinadoresRoute
@@ -404,6 +417,13 @@ declare module '@tanstack/react-router' {
       path: '/configuracao'
       fullPath: '/configuracao'
       preLoaderRoute: typeof ConfiguracaoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/comparar': {
+      id: '/comparar'
+      path: '/comparar'
+      fullPath: '/comparar'
+      preLoaderRoute: typeof CompararRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/clubes': {
@@ -571,6 +591,7 @@ const TreinadoresRouteWithChildren = TreinadoresRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ClubesRoute: ClubesRouteWithChildren,
+  CompararRoute: CompararRoute,
   ConfiguracaoRoute: ConfiguracaoRoute,
   DebugContinentaisRoute: DebugContinentaisRoute,
   DebugTreinadoresRoute: DebugTreinadoresRoute,

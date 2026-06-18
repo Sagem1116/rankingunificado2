@@ -16,6 +16,8 @@ import {
 import { useActiveConfig } from "@/lib/useRankings";
 import { cloneConfig, DEFAULT_CONFIG, type FmConfig } from "@/lib/fm-config";
 import { saveConfig, createProfile, activateProfile, deleteProfile, type WeightProfile } from "@/lib/fm-config-db";
+import { wipeAllData } from "@/lib/fm-wipe";
+import { AlertTriangle } from "lucide-react";
 
 export const Route = createFileRoute("/configuracao")({
   head: () => ({
@@ -49,6 +51,7 @@ function ConfigPage() {
   const [profiles, setProfiles] = useState<WeightProfile[]>([]);
   const [activeId, setActiveId] = useState<string>("");
   const [saving, setSaving] = useState(false);
+  const [wiping, setWiping] = useState(false);
 
   useEffect(() => {
     if (data) {
@@ -130,6 +133,26 @@ function ConfigPage() {
       refresh();
     } catch (e) {
       toast.error("Erro: " + (e as Error).message);
+    }
+  };
+
+  const handleWipe = async () => {
+    const phrase = window.prompt(
+      "ATENÇÃO: esta ação apaga TODOS os dados importados (épocas, classificações, treinadores, países, jogadores e continentais). Os perfis de configuração são mantidos.\n\nEscreve APAGAR para confirmar:",
+    );
+    if (phrase !== "APAGAR") {
+      if (phrase !== null) toast.error("Confirmação incorreta. Nada foi apagado.");
+      return;
+    }
+    setWiping(true);
+    try {
+      await wipeAllData();
+      toast.success("Todos os dados importados foram apagados.");
+      qc.invalidateQueries();
+    } catch (e) {
+      toast.error("Erro: " + (e as Error).message);
+    } finally {
+      setWiping(false);
     }
   };
 
@@ -265,6 +288,25 @@ function ConfigPage() {
           </AccordionContent>
         </AccordionItem>
       </Accordion>
+
+      <Card className="border-destructive/40">
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2 text-destructive">
+            <AlertTriangle className="size-4" /> Zona de perigo
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Apaga permanentemente todas as épocas, classificações, treinadores, países, clubes, jogadores e
+            resultados continentais já importados. Os perfis de configuração de pesos são preservados.
+          </p>
+          <Button variant="destructive" onClick={handleWipe} disabled={wiping}>
+            {wiping ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+            Apagar todos os dados importados
+          </Button>
+        </CardContent>
+      </Card>
     </div>
   );
 }
+
