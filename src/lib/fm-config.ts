@@ -137,7 +137,19 @@ export function rowsToConfig(rows: { category: string; key: string; value: numbe
         if (r.key === "superleague") cfg.superleagueChampionBonus = v;
         break;
       case "meta":
-        if (r.key === "decayPerYear") cfg.decayPerYear = v;
+        // legacy single-value decay → spread across age buckets approximately
+        if (r.key === "decayPerYear" && v < 1) {
+          cfg.decayMultipliers = {
+            last: 1,
+            age1: Math.pow(v, 1),
+            age2: Math.pow(v, 2),
+            age3: Math.pow(v, 3),
+            older: Math.pow(v, 4),
+          };
+        }
+        break;
+      case "decay":
+        if (r.key in cfg.decayMultipliers) (cfg.decayMultipliers as Record<string, number>)[r.key] = v;
         break;
     }
   }
