@@ -185,11 +185,24 @@ function ConfigPage() {
         </Card>
 
         <Card>
-          <CardHeader><CardTitle className="text-base">Bónus de campeão & desvalorização</CardTitle></CardHeader>
-          <CardContent className="grid grid-cols-3 gap-3">
+          <CardHeader><CardTitle className="text-base">Bónus de campeão</CardTitle></CardHeader>
+          <CardContent className="grid grid-cols-2 gap-3">
             <NumField label="Campeão SuperLeague" value={cfg.superleagueChampionBonus} onChange={(v) => upd((c) => { c.superleagueChampionBonus = v; })} />
             <NumField label="Campeão Nacional" value={cfg.nationalChampionBonus} onChange={(v) => upd((c) => { c.nationalChampionBonus = v; })} />
-            <NumField label="Desval./época (0–1)" step={0.01} value={cfg.decayPerYear} onChange={(v) => upd((c) => { c.decayPerYear = Math.max(0, Math.min(1, v)); })} />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Decaimento do Ranking Mundial</CardTitle>
+            <p className="text-xs text-muted-foreground mt-1">Multiplicador aplicado à pontuação consoante a antiguidade da época (1.00 = sem decaimento).</p>
+          </CardHeader>
+          <CardContent className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+            <NumField label="Última época (×)" step={0.01} value={cfg.decayMultipliers.last} onChange={(v) => upd((c) => { c.decayMultipliers.last = Math.max(0, v); })} />
+            <NumField label="Há 1 época (×)" step={0.01} value={cfg.decayMultipliers.age1} onChange={(v) => upd((c) => { c.decayMultipliers.age1 = Math.max(0, v); })} />
+            <NumField label="Há 2 épocas (×)" step={0.01} value={cfg.decayMultipliers.age2} onChange={(v) => upd((c) => { c.decayMultipliers.age2 = Math.max(0, v); })} />
+            <NumField label="Há 3 épocas (×)" step={0.01} value={cfg.decayMultipliers.age3} onChange={(v) => upd((c) => { c.decayMultipliers.age3 = Math.max(0, v); })} />
+            <NumField label="Épocas mais antigas (×)" step={0.01} value={cfg.decayMultipliers.older} onChange={(v) => upd((c) => { c.decayMultipliers.older = Math.max(0, v); })} />
           </CardContent>
         </Card>
       </div>

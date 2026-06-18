@@ -7,6 +7,14 @@ import {
   SUPERLEAGUE_CHAMPION_BONUS,
 } from "./fm-defaults";
 
+export interface DecayMultipliers {
+  last: number;   // última época (age 0)
+  age1: number;   // há 1 época
+  age2: number;   // há 2 épocas
+  age3: number;   // há 3 épocas
+  older: number;  // épocas mais antigas (4+)
+}
+
 export interface FmConfig {
   positionPoints: Record<number, number>;
   divisionWeights: Record<number, number>;
@@ -14,8 +22,16 @@ export interface FmConfig {
   titleWeights: { match: string; label: string; weight: number }[];
   nationalChampionBonus: number;
   superleagueChampionBonus: number;
-  decayPerYear: number; // 1 = sem desvalorização; 0.97 = -3%/época mais antiga
+  decayMultipliers: DecayMultipliers;
 }
+
+export const DEFAULT_DECAY: DecayMultipliers = {
+  last: 1,
+  age1: 0.85,
+  age2: 0.7,
+  age3: 0.55,
+  older: 0.4,
+};
 
 export const DEFAULT_CONFIG: FmConfig = {
   positionPoints: { ...DEFAULT_POSITION_POINTS },
@@ -24,7 +40,7 @@ export const DEFAULT_CONFIG: FmConfig = {
   titleWeights: DEFAULT_TITLE_WEIGHTS.map((t) => ({ ...t })),
   nationalChampionBonus: NATIONAL_CHAMPION_BONUS,
   superleagueChampionBonus: SUPERLEAGUE_CHAMPION_BONUS,
-  decayPerYear: 1,
+  decayMultipliers: { ...DEFAULT_DECAY },
 };
 
 export function cloneConfig(c: FmConfig): FmConfig {
@@ -35,7 +51,7 @@ export function cloneConfig(c: FmConfig): FmConfig {
     titleWeights: c.titleWeights.map((t) => ({ ...t })),
     nationalChampionBonus: c.nationalChampionBonus,
     superleagueChampionBonus: c.superleagueChampionBonus,
-    decayPerYear: c.decayPerYear,
+    decayMultipliers: { ...c.decayMultipliers },
   };
 }
 
@@ -63,9 +79,13 @@ export function cfgTitleWeight(cfg: FmConfig, competition: string): { label: str
 }
 
 export function cfgDecay(cfg: FmConfig, seasonYear: number, latestYear: number): number {
-  if (cfg.decayPerYear >= 1) return 1;
   const age = Math.max(0, latestYear - seasonYear);
-  return Math.pow(cfg.decayPerYear, age);
+  const d = cfg.decayMultipliers;
+  if (age === 0) return d.last;
+  if (age === 1) return d.age1;
+  if (age === 2) return d.age2;
+  if (age === 3) return d.age3;
+  return d.older;
 }
 
 // ---- serialization to/from config_weights rows ----
@@ -84,7 +104,11 @@ export function configToRows(profileId: string, cfg: FmConfig): ConfigRow[] {
   for (const t of cfg.titleWeights) rows.push({ profile_id: profileId, category: "title", key: t.match, value: t.weight });
   rows.push({ profile_id: profileId, category: "bonus", key: "national", value: cfg.nationalChampionBonus });
   rows.push({ profile_id: profileId, category: "bonus", key: "superleague", value: cfg.superleagueChampionBonus });
-  rows.push({ profile_id: profileId, category: "meta", key: "decayPerYear", value: cfg.decayPerYear });
+  rows.push({ profile_id: profileId, category: "decay", key: "last", value: cfg.decayMultipliers.last });
+  rows.push({ profile_id: profileId, category: "decay", key: "age1", value: cfg.decayMultipliers.age1 });
+  rows.push({ profile_id: profileId, category: "decay", key: "age2", value: cfg.decayMultipliers.age2 });
+  rows.push({ profile_id: profileId, category: "decay", key: "age3", value: cfg.decayMultipliers.age3 });
+  rows.push({ profile_id: profileId, category: "decay", key: "older", value: cfg.decayMultipliers.older });
   return rows;
 }
 
@@ -113,7 +137,19 @@ export function rowsToConfig(rows: { category: string; key: string; value: numbe
         if (r.key === "superleague") cfg.superleagueChampionBonus = v;
         break;
       case "meta":
-        if (r.key === "decayPerYear") cfg.decayPerYear = v;
+        // legacy single-value decay → spread across age buckets approximately
+        if (r.key === "decayPerYear" && v < 1) {
+          cfg.decayMultipliers = {
+            last: 1,
+            age1: Math.pow(v, 1),
+            age2: Math.pow(v, 2),
+            age3: Math.pow(v, 3),
+            older: Math.pow(v, 4),
+          };
+        }
+        break;
+      case "decay":
+        if (r.key in cfg.decayMultipliers) (cfg.decayMultipliers as unknown as Record<string, number>)[r.key] = v;
         break;
     }
   }
