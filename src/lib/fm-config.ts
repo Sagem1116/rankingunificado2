@@ -79,9 +79,13 @@ export function cfgTitleWeight(cfg: FmConfig, competition: string): { label: str
 }
 
 export function cfgDecay(cfg: FmConfig, seasonYear: number, latestYear: number): number {
-  if (cfg.decayPerYear >= 1) return 1;
   const age = Math.max(0, latestYear - seasonYear);
-  return Math.pow(cfg.decayPerYear, age);
+  const d = cfg.decayMultipliers;
+  if (age === 0) return d.last;
+  if (age === 1) return d.age1;
+  if (age === 2) return d.age2;
+  if (age === 3) return d.age3;
+  return d.older;
 }
 
 // ---- serialization to/from config_weights rows ----
