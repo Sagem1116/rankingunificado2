@@ -51,6 +51,7 @@ function ConfigPage() {
   const [profiles, setProfiles] = useState<WeightProfile[]>([]);
   const [activeId, setActiveId] = useState<string>("");
   const [saving, setSaving] = useState(false);
+  const [wiping, setWiping] = useState(false);
 
   useEffect(() => {
     if (data) {
@@ -132,6 +133,26 @@ function ConfigPage() {
       refresh();
     } catch (e) {
       toast.error("Erro: " + (e as Error).message);
+    }
+  };
+
+  const handleWipe = async () => {
+    const phrase = window.prompt(
+      "ATENÇÃO: esta ação apaga TODOS os dados importados (épocas, classificações, treinadores, países, jogadores e continentais). Os perfis de configuração são mantidos.\n\nEscreve APAGAR para confirmar:",
+    );
+    if (phrase !== "APAGAR") {
+      if (phrase !== null) toast.error("Confirmação incorreta. Nada foi apagado.");
+      return;
+    }
+    setWiping(true);
+    try {
+      await wipeAllData();
+      toast.success("Todos os dados importados foram apagados.");
+      qc.invalidateQueries();
+    } catch (e) {
+      toast.error("Erro: " + (e as Error).message);
+    } finally {
+      setWiping(false);
     }
   };
 
