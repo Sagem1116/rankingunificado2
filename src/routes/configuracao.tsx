@@ -288,6 +288,25 @@ function ConfigPage() {
           </AccordionContent>
         </AccordionItem>
       </Accordion>
+
+      <Card className="border-destructive/40">
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2 text-destructive">
+            <AlertTriangle className="size-4" /> Zona de perigo
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Apaga permanentemente todas as épocas, classificações, treinadores, países, clubes, jogadores e
+            resultados continentais já importados. Os perfis de configuração de pesos são preservados.
+          </p>
+          <Button variant="destructive" onClick={handleWipe} disabled={wiping}>
+            {wiping ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+            Apagar todos os dados importados
+          </Button>
+        </CardContent>
+      </Card>
     </div>
   );
 }
+
