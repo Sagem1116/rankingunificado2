@@ -16,6 +16,8 @@ import {
 import { useActiveConfig } from "@/lib/useRankings";
 import { cloneConfig, DEFAULT_CONFIG, type FmConfig } from "@/lib/fm-config";
 import { saveConfig, createProfile, activateProfile, deleteProfile, type WeightProfile } from "@/lib/fm-config-db";
+import { wipeAllData } from "@/lib/fm-wipe";
+import { AlertTriangle } from "lucide-react";
 
 export const Route = createFileRoute("/configuracao")({
   head: () => ({
