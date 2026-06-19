@@ -3,6 +3,7 @@ import {
   DEFAULT_DIVISION_WEIGHTS,
   DEFAULT_COMPETITION_WEIGHTS,
   DEFAULT_TITLE_WEIGHTS,
+  DEFAULT_NATIONAL_LEAGUE_WEIGHTS,
   NATIONAL_CHAMPION_BONUS,
   SUPERLEAGUE_CHAMPION_BONUS,
 } from "./fm-defaults";
@@ -20,9 +21,11 @@ export interface FmConfig {
   divisionWeights: Record<number, number>;
   competitionWeights: { national: number; continental: number; superleague: number };
   titleWeights: { match: string; label: string; weight: number }[];
+  nationalLeagueWeights: { match: string; label: string; weight: number }[];
   nationalChampionBonus: number;
   superleagueChampionBonus: number;
   decayMultipliers: DecayMultipliers;
+  normalizePointsByGames: boolean;
 }
 
 export const DEFAULT_DECAY: DecayMultipliers = {
@@ -38,9 +41,11 @@ export const DEFAULT_CONFIG: FmConfig = {
   divisionWeights: { ...DEFAULT_DIVISION_WEIGHTS },
   competitionWeights: { ...DEFAULT_COMPETITION_WEIGHTS },
   titleWeights: DEFAULT_TITLE_WEIGHTS.map((t) => ({ ...t })),
+  nationalLeagueWeights: DEFAULT_NATIONAL_LEAGUE_WEIGHTS.map((t) => ({ ...t })),
   nationalChampionBonus: NATIONAL_CHAMPION_BONUS,
   superleagueChampionBonus: SUPERLEAGUE_CHAMPION_BONUS,
   decayMultipliers: { ...DEFAULT_DECAY },
+  normalizePointsByGames: false,
 };
 
 export function cloneConfig(c: FmConfig): FmConfig {
@@ -49,9 +54,11 @@ export function cloneConfig(c: FmConfig): FmConfig {
     divisionWeights: { ...c.divisionWeights },
     competitionWeights: { ...c.competitionWeights },
     titleWeights: c.titleWeights.map((t) => ({ ...t })),
+    nationalLeagueWeights: c.nationalLeagueWeights.map((t) => ({ ...t })),
     nationalChampionBonus: c.nationalChampionBonus,
     superleagueChampionBonus: c.superleagueChampionBonus,
     decayMultipliers: { ...c.decayMultipliers },
+    normalizePointsByGames: c.normalizePointsByGames,
   };
 }
 
@@ -78,6 +85,16 @@ export function cfgTitleWeight(cfg: FmConfig, competition: string): { label: str
   return { label: competition, weight: 150 };
 }
 
+export function cfgNationalLeagueWeight(cfg: FmConfig, leagueLabel: string | null | undefined): number {
+  if (!leagueLabel) return 1;
+  const n = leagueLabel.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  if (!n) return 1;
+  for (const t of cfg.nationalLeagueWeights) {
+    if (t.match && n.includes(t.match)) return t.weight;
+  }
+  return 1;
+}
+
 export function cfgDecay(cfg: FmConfig, seasonYear: number, latestYear: number): number {
   const age = Math.max(0, latestYear - seasonYear);
   const d = cfg.decayMultipliers;
@@ -101,7 +118,8 @@ export function configToRows(profileId: string, cfg: FmConfig): ConfigRow[] {
   for (const [k, v] of Object.entries(cfg.positionPoints)) rows.push({ profile_id: profileId, category: "position", key: k, value: v });
   for (const [k, v] of Object.entries(cfg.divisionWeights)) rows.push({ profile_id: profileId, category: "division", key: k, value: v });
   for (const [k, v] of Object.entries(cfg.competitionWeights)) rows.push({ profile_id: profileId, category: "competition", key: k, value: v });
-  for (const t of cfg.titleWeights) rows.push({ profile_id: profileId, category: "title", key: t.match, value: t.weight });
+  for (const t of cfg.titleWeights) rows.push({ profile_id: profileId, category: "title", key: `${t.match}\u0001${t.label}`, value: t.weight });
+  for (const t of cfg.nationalLeagueWeights) rows.push({ profile_id: profileId, category: "national-league", key: `${t.match}\u0001${t.label}`, value: t.weight });
   rows.push({ profile_id: profileId, category: "bonus", key: "national", value: cfg.nationalChampionBonus });
   rows.push({ profile_id: profileId, category: "bonus", key: "superleague", value: cfg.superleagueChampionBonus });
   rows.push({ profile_id: profileId, category: "decay", key: "last", value: cfg.decayMultipliers.last });
@@ -109,12 +127,18 @@ export function configToRows(profileId: string, cfg: FmConfig): ConfigRow[] {
   rows.push({ profile_id: profileId, category: "decay", key: "age2", value: cfg.decayMultipliers.age2 });
   rows.push({ profile_id: profileId, category: "decay", key: "age3", value: cfg.decayMultipliers.age3 });
   rows.push({ profile_id: profileId, category: "decay", key: "older", value: cfg.decayMultipliers.older });
+  rows.push({ profile_id: profileId, category: "meta", key: "normalizePointsByGames", value: cfg.normalizePointsByGames ? 1 : 0 });
   return rows;
 }
 
 export function rowsToConfig(rows: { category: string; key: string; value: number }[]): FmConfig {
   const cfg = cloneConfig(DEFAULT_CONFIG);
   if (!rows.length) return cfg;
+  // titles & national-league are list-typed: reset before applying rows
+  const hasTitleRows = rows.some((r) => r.category === "title");
+  const hasNLRows = rows.some((r) => r.category === "national-league");
+  if (hasTitleRows) cfg.titleWeights = [];
+  if (hasNLRows) cfg.nationalLeagueWeights = [];
   for (const r of rows) {
     const v = Number(r.value);
     switch (r.category) {
@@ -128,8 +152,15 @@ export function rowsToConfig(rows: { category: string; key: string; value: numbe
         if (r.key in cfg.competitionWeights) (cfg.competitionWeights as Record<string, number>)[r.key] = v;
         break;
       case "title": {
-        const t = cfg.titleWeights.find((x) => x.match === r.key);
-        if (t) t.weight = v;
+        const [match, label] = r.key.split("\u0001");
+        const m = match ?? "";
+        const def = DEFAULT_TITLE_WEIGHTS.find((d) => d.match === m);
+        cfg.titleWeights.push({ match: m, label: label || def?.label || m, weight: v });
+        break;
+      }
+      case "national-league": {
+        const [match, label] = r.key.split("\u0001");
+        cfg.nationalLeagueWeights.push({ match: match ?? "", label: label ?? match ?? "", weight: v });
         break;
       }
       case "bonus":
@@ -146,6 +177,9 @@ export function rowsToConfig(rows: { category: string; key: string; value: numbe
             age3: Math.pow(v, 3),
             older: Math.pow(v, 4),
           };
+        }
+        if (r.key === "normalizePointsByGames") {
+          cfg.normalizePointsByGames = v > 0;
         }
         break;
       case "decay":

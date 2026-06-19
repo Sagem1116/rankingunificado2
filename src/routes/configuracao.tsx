@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Loader2, Settings, Save, Plus, Check, Trash2, RotateCcw } from "lucide-react";
+import { Loader2, Settings, Save, Plus, Check, Trash2, RotateCcw, Download, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -68,7 +68,7 @@ function ConfigPage() {
     return next;
   });
 
-  const positions = useMemo(() => Array.from({ length: 20 }, (_, i) => i + 1), []);
+  const positions = useMemo(() => Array.from({ length: 100 }, (_, i) => i + 1), []);
   const divisions = useMemo(() => Array.from({ length: 11 }, (_, i) => i + 1), []);
 
   if (isLoading || !cfg) {
@@ -136,6 +136,42 @@ function ConfigPage() {
     }
   };
 
+  const handleExport = () => {
+    const blob = new Blob([JSON.stringify(cfg, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const profileName = profiles.find((p) => p.id === activeId)?.name ?? "config";
+    a.href = url;
+    a.download = `fm-config-${profileName.replace(/\s+/g, "_")}-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Configuração exportada.");
+  };
+
+  const handleImport = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(String(reader.result));
+        const merged = cloneConfig(DEFAULT_CONFIG);
+        if (parsed.positionPoints) merged.positionPoints = { ...parsed.positionPoints };
+        if (parsed.divisionWeights) merged.divisionWeights = { ...parsed.divisionWeights };
+        if (parsed.competitionWeights) merged.competitionWeights = { ...merged.competitionWeights, ...parsed.competitionWeights };
+        if (Array.isArray(parsed.titleWeights)) merged.titleWeights = parsed.titleWeights.map((t: { match?: string; label?: string; weight?: number }) => ({ match: t.match ?? "", label: t.label ?? "", weight: Number(t.weight) || 0 }));
+        if (Array.isArray(parsed.nationalLeagueWeights)) merged.nationalLeagueWeights = parsed.nationalLeagueWeights.map((t: { match?: string; label?: string; weight?: number }) => ({ match: t.match ?? "", label: t.label ?? "", weight: Number(t.weight) || 1 }));
+        if (typeof parsed.nationalChampionBonus === "number") merged.nationalChampionBonus = parsed.nationalChampionBonus;
+        if (typeof parsed.superleagueChampionBonus === "number") merged.superleagueChampionBonus = parsed.superleagueChampionBonus;
+        if (parsed.decayMultipliers) merged.decayMultipliers = { ...merged.decayMultipliers, ...parsed.decayMultipliers };
+        if (typeof parsed.normalizePointsByGames === "boolean") merged.normalizePointsByGames = parsed.normalizePointsByGames;
+        setCfg(merged);
+        toast.success("Configuração importada. Clica em Guardar para aplicar.");
+      } catch (e) {
+        toast.error("JSON inválido: " + (e as Error).message);
+      }
+    };
+    reader.readAsText(file);
+  };
+
   const handleWipe = async () => {
     const phrase = window.prompt(
       "ATENÇÃO: esta ação apaga TODOS os dados importados (épocas, classificações, treinadores, países, jogadores e continentais). Os perfis de configuração são mantidos.\n\nEscreve APAGAR para confirmar:",
@@ -165,7 +201,25 @@ function ConfigPage() {
           </h1>
           <p className="text-muted-foreground text-sm mt-1">Pesos, bónus, desvalorização e fórmula mundial</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
+          <Button variant="outline" onClick={handleExport}>
+            <Download className="size-4" /> Exportar JSON
+          </Button>
+          <Button variant="outline" asChild>
+            <label className="cursor-pointer">
+              <Upload className="size-4" /> Importar JSON
+              <input
+                type="file"
+                accept="application/json,.json"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) handleImport(f);
+                  e.target.value = "";
+                }}
+              />
+            </label>
+          </Button>
           <Button variant="outline" onClick={() => setCfg(cloneConfig(DEFAULT_CONFIG))}>
             <RotateCcw className="size-4" /> Repor padrão
           </Button>
@@ -228,6 +282,29 @@ function ConfigPage() {
             <NumField label="Épocas mais antigas (×)" step={0.01} value={cfg.decayMultipliers.older} onChange={(v) => upd((c) => { c.decayMultipliers.older = Math.max(0, v); })} />
           </CardContent>
         </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Normalização de Pnts por jogos</CardTitle>
+            <p className="text-xs text-muted-foreground mt-1">
+              Quando ativo, os pontos da liga (coluna <em>Pnts</em>) são divididos pelo número de jogos
+              disputados (coluna <em>Jgs</em>) antes de serem somados ao ranking — útil para comparar
+              épocas com calendários diferentes. Aplica-se a Super League e Ligas Nacionais.
+            </p>
+          </CardHeader>
+          <CardContent className="flex items-center gap-3">
+            <input
+              id="normPts"
+              type="checkbox"
+              className="size-4 accent-primary"
+              checked={cfg.normalizePointsByGames}
+              onChange={(e) => upd((c) => { c.normalizePointsByGames = e.target.checked; })}
+            />
+            <Label htmlFor="normPts" className="text-sm cursor-pointer">
+              Dividir Pnts pelo nº de jogos (Jgs) em todos os rankings
+            </Label>
+          </CardContent>
+        </Card>
       </div>
 
       <Accordion type="multiple" className="space-y-3">
@@ -257,6 +334,11 @@ function ConfigPage() {
           <AccordionTrigger>Pesos de títulos continentais</AccordionTrigger>
           <AccordionContent>
             <div className="space-y-3 pb-2">
+              <p className="text-xs text-muted-foreground">
+                Peso base atribuído a cada competição continental. O nome é comparado (sem acentos/maiúsculas) com a coluna <em>Competição</em> dos dados continentais.
+                A pontuação final = peso do título × peso Continental × decaimento por época.
+                Competições sem entrada nesta lista usam peso padrão 150.
+              </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {cfg.titleWeights.map((t, i) => (
                   <div key={i} className="flex items-end gap-2 rounded-lg border border-border p-2">
@@ -273,7 +355,7 @@ function ConfigPage() {
                       />
                     </div>
                     <div className="w-24">
-                      <NumField label="Peso" value={t.weight} onChange={(v) => upd((c) => { c.titleWeights[i].weight = v; })} />
+                      <NumField label="Peso base" value={t.weight} onChange={(v) => upd((c) => { c.titleWeights[i].weight = v; })} />
                     </div>
                     <Button size="icon" variant="ghost" className="shrink-0" onClick={() => upd((c) => { c.titleWeights.splice(i, 1); })}>
                       <Trash2 className="size-4 text-destructive" />
@@ -283,6 +365,46 @@ function ConfigPage() {
               </div>
               <Button variant="outline" size="sm" onClick={() => upd((c) => { c.titleWeights.push({ match: "", label: "Nova competição", weight: 150 }); })}>
                 <Plus className="size-4" /> Adicionar competição
+              </Button>
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+
+        <AccordionItem value="natleagues" className="border rounded-lg px-4">
+          <AccordionTrigger>Pesos de Ligas Nacionais</AccordionTrigger>
+          <AccordionContent>
+            <div className="space-y-3 pb-2">
+              <p className="text-xs text-muted-foreground">
+                Multiplicador aplicado a pontos de posição, Pnts da liga e bónus de campeão das Ligas Nacionais.
+                O nome é comparado (sem acentos/maiúsculas) com a coluna <em>Liga/Divisão</em> das classificações nacionais.
+                Ligas sem entrada nesta lista usam multiplicador 1.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {cfg.nationalLeagueWeights.map((t, i) => (
+                  <div key={i} className="flex items-end gap-2 rounded-lg border border-border p-2">
+                    <div className="flex-1 space-y-1">
+                      <Label className="text-xs text-muted-foreground">Nome da liga</Label>
+                      <Input
+                        value={t.label}
+                        onChange={(e) => upd((c) => {
+                          c.nationalLeagueWeights[i].label = e.target.value;
+                          c.nationalLeagueWeights[i].match = e.target.value
+                            .normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+                        })}
+                        className="h-9"
+                      />
+                    </div>
+                    <div className="w-24">
+                      <NumField label="Peso (×)" step={0.05} value={t.weight} onChange={(v) => upd((c) => { c.nationalLeagueWeights[i].weight = v; })} />
+                    </div>
+                    <Button size="icon" variant="ghost" className="shrink-0" onClick={() => upd((c) => { c.nationalLeagueWeights.splice(i, 1); })}>
+                      <Trash2 className="size-4 text-destructive" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+              <Button variant="outline" size="sm" onClick={() => upd((c) => { c.nationalLeagueWeights.push({ match: "", label: "Nova liga", weight: 1 }); })}>
+                <Plus className="size-4" /> Adicionar liga nacional
               </Button>
             </div>
           </AccordionContent>

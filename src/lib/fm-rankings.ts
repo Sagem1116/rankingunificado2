@@ -3,18 +3,28 @@ import {
   cfgPositionPoints,
   cfgDivisionWeight,
   cfgTitleWeight,
+  cfgNationalLeagueWeight,
   cfgDecay,
   type FmConfig,
 } from "./fm-config";
+
+const MODULE_NAME: Record<string, string> = {
+  superleague: "Super League",
+  national: "Liga Nacional",
+  continental: "Continental",
+};
 
 export interface StandingRow {
   season_year: number;
   module: "superleague" | "national" | "continental";
   division_num: number | null;
+  division_label?: string | null;
   position: number | null;
   club_name: string;
   is_champion: boolean;
   info?: string | null;
+  points?: number | null;
+  played?: number | null;
 }
 
 export interface ContinentalRow {
@@ -48,16 +58,41 @@ export interface ComputeInput {
   clubCountry: Record<string, string | null>;
 }
 
+export type BreakdownSource =
+  | "position"
+  | "champion-bonus"
+  | "league-points"
+  | "continental-win"
+  | "continental-loss";
+
+export interface BreakdownItem {
+  season_year: number;
+  module: "superleague" | "national" | "continental";
+  source: BreakdownSource;
+  detail: string;
+  raw: number;
+  weighted: number;
+  multipliers: { compW: number; divW: number; decay: number };
+  division_num?: number | null;
+  division_label?: string | null;
+  position?: number | null;
+  leagueWeightMatched?: boolean;
+}
+
 export interface ComputeResult {
   clubs: RankingEntry[];
   countries: RankingEntry[];
   coaches: RankingEntry[];
   clubSeasonPoints: Record<string, { raw: number; weighted: number; titles: number }>;
-  /** Per-entity per-year weighted points (years sorted ascending). */
   evolution: {
     clubs: Record<string, Record<number, number>>;
     coaches: Record<string, Record<number, number>>;
     countries: Record<string, Record<number, number>>;
+  };
+  breakdown: {
+    clubs: Record<string, BreakdownItem[]>;
+    coaches: Record<string, BreakdownItem[]>;
+    countries: Record<string, BreakdownItem[]>;
   };
   years: number[];
 }
@@ -76,6 +111,10 @@ function bumpEvo(evo: Record<string, Record<number, number>>, name: string, year
   evo[name] = m;
 }
 
+function pushBD(bd: Record<string, BreakdownItem[]>, name: string, item: BreakdownItem) {
+  (bd[name] ??= []).push(item);
+}
+
 export function computeRankings(input: ComputeInput, config: FmConfig = DEFAULT_CONFIG): ComputeResult {
   const clubs = new Map<string, RankingEntry>();
   const countries = new Map<string, RankingEntry>();
@@ -83,6 +122,10 @@ export function computeRankings(input: ComputeInput, config: FmConfig = DEFAULT_
   const evoClubs: Record<string, Record<number, number>> = {};
   const evoCountries: Record<string, Record<number, number>> = {};
   const evoCoaches: Record<string, Record<number, number>> = {};
+  const bdClubs: Record<string, BreakdownItem[]> = {};
+  const bdCountries: Record<string, BreakdownItem[]> = {};
+  const bdCoaches: Record<string, BreakdownItem[]> = {};
+  const clubSeasonItems: Record<string, BreakdownItem[]> = {};
 
   const yearsAll = [
     ...input.standings.map((s) => s.season_year),
@@ -100,34 +143,126 @@ export function computeRankings(input: ComputeInput, config: FmConfig = DEFAULT_
     clubSeasonPoints[k] = cur;
   };
 
+  const recordItem = (season: number, module: StandingRow["module"], club: string, item: BreakdownItem) => {
+    pushBD(bdClubs, club, item);
+    const country = input.clubCountry[club];
+    if (country) pushBD(bdCountries, country, item);
+    const k = `${season}|${module}|${club}`;
+    (clubSeasonItems[k] ??= []).push(item);
+  };
+
   for (const s of input.standings) {
-    const base = cfgPositionPoints(config, s.position);
     const compW = config.competitionWeights[s.module as keyof typeof config.competitionWeights] ?? 1;
-    const divW = s.module === "superleague" ? cfgDivisionWeight(config, s.division_num) : 1;
+    const nlMatched =
+      s.module === "national" && cfgNationalLeagueWeight(config, s.division_label) !== 1;
+    const divW =
+      s.module === "superleague"
+        ? cfgDivisionWeight(config, s.division_num)
+        : s.module === "national"
+          ? cfgNationalLeagueWeight(config, s.division_label)
+          : 1;
     const decay = cfgDecay(config, s.season_year, latestYear);
-    let raw = base;
-    let weighted = base * compW * divW * decay;
-    let titles = 0;
+    const mult = { compW, divW, decay };
+    const leagueTag =
+      s.module === "national" && s.division_label
+        ? ` [${s.division_label}${nlMatched ? ` · peso liga ×${divW}` : " · sem peso definido"}]`
+        : s.module === "superleague" && s.division_num
+          ? ` [Div. ${s.division_num} · peso ×${divW}]`
+          : "";
+
+    // Position points
+    const base = cfgPositionPoints(config, s.position);
+    if (base > 0) {
+      const w = base * compW * divW * decay;
+      add(clubs, s.club_name, base, w);
+      bump(s.season_year, s.module, s.club_name, base, w);
+      bumpEvo(evoClubs, s.club_name, s.season_year, w);
+      const country = input.clubCountry[s.club_name];
+      if (country) {
+        add(countries, country, base, w);
+        bumpEvo(evoCountries, country, s.season_year, w);
+      }
+      recordItem(s.season_year, s.module, s.club_name, {
+        season_year: s.season_year,
+        module: s.module,
+        source: "position",
+        detail: `Posição ${s.position} → ${base} pts base${leagueTag}`,
+        raw: base,
+        weighted: w,
+        multipliers: mult,
+        division_num: s.division_num,
+        division_label: s.division_label,
+        position: s.position,
+        leagueWeightMatched: nlMatched,
+      });
+    }
+
+    // League points (Pnts column from standings) — optionally normalized by games played
+    const rawLeaguePts = Number(s.points ?? 0) || 0;
+    const gamesPlayed = Number(s.played ?? 0) || 0;
+    const normalize = config.normalizePointsByGames && gamesPlayed > 0;
+    const leaguePts = normalize ? rawLeaguePts / gamesPlayed : rawLeaguePts;
+    if (leaguePts > 0 && (s.module === "superleague" || s.module === "national")) {
+      const w = leaguePts * compW * divW * decay;
+      add(clubs, s.club_name, leaguePts, w);
+      bump(s.season_year, s.module, s.club_name, leaguePts, w);
+      bumpEvo(evoClubs, s.club_name, s.season_year, w);
+      const country = input.clubCountry[s.club_name];
+      if (country) {
+        add(countries, country, leaguePts, w);
+        bumpEvo(evoCountries, country, s.season_year, w);
+      }
+      recordItem(s.season_year, s.module, s.club_name, {
+        season_year: s.season_year,
+        module: s.module,
+        source: "league-points",
+        detail: normalize
+          ? `Pnts/jogo: ${rawLeaguePts}÷${gamesPlayed} = ${leaguePts.toFixed(3)}${leagueTag}`
+          : `Pnts da liga: ${leaguePts}${leagueTag}`,
+        raw: leaguePts,
+        weighted: w,
+        multipliers: mult,
+        division_num: s.division_num,
+        division_label: s.division_label,
+        position: s.position,
+        leagueWeightMatched: nlMatched,
+      });
+    }
+
+    // Champion bonus
     if (s.is_champion) {
       const bonus = s.module === "superleague" ? config.superleagueChampionBonus : config.nationalChampionBonus;
-      raw += bonus * 0.5;
-      weighted += bonus * compW * decay;
-      titles = 1;
-    }
-    add(clubs, s.club_name, raw, weighted, titles);
-    bump(s.season_year, s.module, s.club_name, raw, weighted, titles);
-    bumpEvo(evoClubs, s.club_name, s.season_year, weighted);
-    const country = input.clubCountry[s.club_name];
-    if (country) {
-      add(countries, country, raw, weighted, titles);
-      bumpEvo(evoCountries, country, s.season_year, weighted);
+      const rawB = bonus * 0.5;
+      const w = bonus * compW * divW * decay;
+      add(clubs, s.club_name, rawB, w, 1);
+      bump(s.season_year, s.module, s.club_name, rawB, w, 1);
+      bumpEvo(evoClubs, s.club_name, s.season_year, w);
+      const country = input.clubCountry[s.club_name];
+      if (country) {
+        add(countries, country, rawB, w, 1);
+        bumpEvo(evoCountries, country, s.season_year, w);
+      }
+      recordItem(s.season_year, s.module, s.club_name, {
+        season_year: s.season_year,
+        module: s.module,
+        source: "champion-bonus",
+        detail: `Campeão (${MODULE_NAME[s.module] ?? s.module}) → bónus ${bonus}${leagueTag}`,
+        raw: rawB,
+        weighted: w,
+        multipliers: mult,
+        division_num: s.division_num,
+        division_label: s.division_label,
+        position: s.position,
+        leagueWeightMatched: nlMatched,
+      });
     }
   }
 
   for (const c of input.continental) {
-    const { weight } = cfgTitleWeight(config, c.competition);
+    const { weight, label } = cfgTitleWeight(config, c.competition);
     const compW = config.competitionWeights.continental;
     const decay = cfgDecay(config, c.season_year, latestYear);
+    const mult = { compW, divW: 1, decay };
     if (c.winner) {
       const w = weight * compW * decay;
       add(clubs, c.winner, 200, w, 1);
@@ -138,6 +273,15 @@ export function computeRankings(input: ComputeInput, config: FmConfig = DEFAULT_
         add(countries, country, 200, w, 1);
         bumpEvo(evoCountries, country, c.season_year, w);
       }
+      recordItem(c.season_year, "continental", c.winner, {
+        season_year: c.season_year,
+        module: "continental",
+        source: "continental-win",
+        detail: `Vencedor ${label} (${c.competition})`,
+        raw: 200,
+        weighted: w,
+        multipliers: mult,
+      });
     }
     const loser = c.winner === c.team1 ? c.team2 : c.team1;
     if (loser) {
@@ -150,12 +294,19 @@ export function computeRankings(input: ComputeInput, config: FmConfig = DEFAULT_
         add(countries, country, 50, w, 0);
         bumpEvo(evoCountries, country, c.season_year, w);
       }
+      recordItem(c.season_year, "continental", loser, {
+        season_year: c.season_year,
+        module: "continental",
+        source: "continental-loss",
+        detail: `Finalista vencido ${label} (${c.competition})`,
+        raw: 50,
+        weighted: w,
+        multipliers: mult,
+      });
     }
   }
 
-  // Coaches inherit the points AND titles of the club they managed that season/module.
-  // Continental results live under module "continental"; attribute them to whoever
-  // coached the club in the national (or superleague) module for that season.
+  // Coaches inherit points & breakdown items from the club they managed.
   const coaches = new Map<string, RankingEntry>();
   const seenContinentalFor = new Set<string>();
   for (const c of input.coaches) {
@@ -169,8 +320,10 @@ export function computeRankings(input: ComputeInput, config: FmConfig = DEFAULT_
       raw += pts.raw;
       weighted += pts.weighted;
       titles += pts.titles;
+      for (const item of clubSeasonItems[k] ?? []) {
+        pushBD(bdCoaches, c.name, { ...item, detail: `${item.detail} · ${c.club_name}` });
+      }
     }
-    // Merge continental results once per (coach|season|club) — only for non-continental modules
     if (c.module !== "continental") {
       const contKey = `${c.season_year}|continental|${c.club_name}`;
       const dedupe = `${c.name}|${contKey}`;
@@ -180,6 +333,9 @@ export function computeRankings(input: ComputeInput, config: FmConfig = DEFAULT_
         raw += contPts.raw;
         weighted += contPts.weighted;
         titles += contPts.titles;
+        for (const item of clubSeasonItems[contKey] ?? []) {
+          pushBD(bdCoaches, c.name, { ...item, detail: `${item.detail} · ${c.club_name}` });
+        }
       }
     }
     if (raw === 0 && weighted === 0 && titles === 0) continue;
@@ -188,14 +344,13 @@ export function computeRankings(input: ComputeInput, config: FmConfig = DEFAULT_
   }
 
   const sortW = (a: RankingEntry, b: RankingEntry) => b.weighted - a.weighted;
-  const sortR = (a: RankingEntry, b: RankingEntry) => b.raw - a.raw;
-  void sortR;
   return {
     clubs: [...clubs.values()].sort(sortW),
     countries: [...countries.values()].sort(sortW),
     coaches: [...coaches.values()].sort(sortW),
     clubSeasonPoints,
     evolution: { clubs: evoClubs, coaches: evoCoaches, countries: evoCountries },
+    breakdown: { clubs: bdClubs, coaches: bdCoaches, countries: bdCountries },
     years,
   };
 }

@@ -219,7 +219,7 @@ export async function fetchAllData(): Promise<AllData> {
   });
 
   const [{ data: standings }, { data: continental }, { data: coachAssign }] = await Promise.all([
-    supabase.from("standings").select("season_id,module,division_num,position,club_name,is_champion,info"),
+    supabase.from("standings").select("season_id,module,division_num,division_label,position,club_name,is_champion,info,points,played"),
     supabase.from("continental_results").select("season_id,competition,team1,team2,winner_club_id"),
     supabase.from("coach_assignments").select("season_id,module,coach_name,club_name"),
   ]);
@@ -242,10 +242,13 @@ export async function fetchAllData(): Promise<AllData> {
     season_year: seasonMap.get(s.season_id) ?? 0,
     module: s.module,
     division_num: s.division_num,
+    division_label: (s as { division_label?: string | null }).division_label ?? null,
     position: s.position,
     club_name: s.club_name,
     is_champion: s.is_champion,
     info: s.info,
+    points: (s as { points?: number | null }).points ?? null,
+    played: (s as { played?: number | null }).played ?? null,
   }));
   const continentalRows: ContinentalRow[] = (continental ?? []).map((c) => ({
     season_year: seasonMap.get(c.season_id) ?? 0,

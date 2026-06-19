@@ -15,6 +15,7 @@ import { Route as PaisesRouteImport } from './routes/paises'
 import { Route as ImportarRouteImport } from './routes/importar'
 import { Route as HallOfFameRouteImport } from './routes/hall-of-fame'
 import { Route as DebugTreinadoresRouteImport } from './routes/debug-treinadores'
+import { Route as DebugPontosRouteImport } from './routes/debug-pontos'
 import { Route as DebugContinentaisRouteImport } from './routes/debug-continentais'
 import { Route as ConfiguracaoRouteImport } from './routes/configuracao'
 import { Route as CompararRouteImport } from './routes/comparar'
@@ -64,6 +65,11 @@ const HallOfFameRoute = HallOfFameRouteImport.update({
 const DebugTreinadoresRoute = DebugTreinadoresRouteImport.update({
   id: '/debug-treinadores',
   path: '/debug-treinadores',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DebugPontosRoute = DebugPontosRouteImport.update({
+  id: '/debug-pontos',
+  path: '/debug-pontos',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DebugContinentaisRoute = DebugContinentaisRouteImport.update({
@@ -178,6 +184,7 @@ export interface FileRoutesByFullPath {
   '/comparar': typeof CompararRoute
   '/configuracao': typeof ConfiguracaoRoute
   '/debug-continentais': typeof DebugContinentaisRoute
+  '/debug-pontos': typeof DebugPontosRoute
   '/debug-treinadores': typeof DebugTreinadoresRoute
   '/hall-of-fame': typeof HallOfFameRoute
   '/importar': typeof ImportarRoute
@@ -205,6 +212,7 @@ export interface FileRoutesByTo {
   '/comparar': typeof CompararRoute
   '/configuracao': typeof ConfiguracaoRoute
   '/debug-continentais': typeof DebugContinentaisRoute
+  '/debug-pontos': typeof DebugPontosRoute
   '/debug-treinadores': typeof DebugTreinadoresRoute
   '/hall-of-fame': typeof HallOfFameRoute
   '/importar': typeof ImportarRoute
@@ -232,6 +240,7 @@ export interface FileRoutesById {
   '/comparar': typeof CompararRoute
   '/configuracao': typeof ConfiguracaoRoute
   '/debug-continentais': typeof DebugContinentaisRoute
+  '/debug-pontos': typeof DebugPontosRoute
   '/debug-treinadores': typeof DebugTreinadoresRoute
   '/hall-of-fame': typeof HallOfFameRoute
   '/importar': typeof ImportarRoute
@@ -262,6 +271,7 @@ export interface FileRouteTypes {
     | '/comparar'
     | '/configuracao'
     | '/debug-continentais'
+    | '/debug-pontos'
     | '/debug-treinadores'
     | '/hall-of-fame'
     | '/importar'
@@ -289,6 +299,7 @@ export interface FileRouteTypes {
     | '/comparar'
     | '/configuracao'
     | '/debug-continentais'
+    | '/debug-pontos'
     | '/debug-treinadores'
     | '/hall-of-fame'
     | '/importar'
@@ -315,6 +326,7 @@ export interface FileRouteTypes {
     | '/comparar'
     | '/configuracao'
     | '/debug-continentais'
+    | '/debug-pontos'
     | '/debug-treinadores'
     | '/hall-of-fame'
     | '/importar'
@@ -344,6 +356,7 @@ export interface RootRouteChildren {
   CompararRoute: typeof CompararRoute
   ConfiguracaoRoute: typeof ConfiguracaoRoute
   DebugContinentaisRoute: typeof DebugContinentaisRoute
+  DebugPontosRoute: typeof DebugPontosRoute
   DebugTreinadoresRoute: typeof DebugTreinadoresRoute
   HallOfFameRoute: typeof HallOfFameRoute
   ImportarRoute: typeof ImportarRoute
@@ -403,6 +416,13 @@ declare module '@tanstack/react-router' {
       path: '/debug-treinadores'
       fullPath: '/debug-treinadores'
       preLoaderRoute: typeof DebugTreinadoresRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/debug-pontos': {
+      id: '/debug-pontos'
+      path: '/debug-pontos'
+      fullPath: '/debug-pontos'
+      preLoaderRoute: typeof DebugPontosRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/debug-continentais': {
@@ -594,6 +614,7 @@ const rootRouteChildren: RootRouteChildren = {
   CompararRoute: CompararRoute,
   ConfiguracaoRoute: ConfiguracaoRoute,
   DebugContinentaisRoute: DebugContinentaisRoute,
+  DebugPontosRoute: DebugPontosRoute,
   DebugTreinadoresRoute: DebugTreinadoresRoute,
   HallOfFameRoute: HallOfFameRoute,
   ImportarRoute: ImportarRoute,

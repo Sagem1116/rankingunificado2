@@ -1,27 +1,19 @@
 // Default scoring configuration (fully editable later in Fase 4 / Configuração).
 
-export const DEFAULT_POSITION_POINTS: Record<number, number> = {
-  1: 1000,
-  2: 800,
-  3: 650,
-  4: 500,
-  5: 400,
-  6: 320,
-  7: 260,
-  8: 210,
-  9: 170,
-  10: 140,
-  11: 115,
-  12: 95,
-  13: 78,
-  14: 64,
-  15: 52,
-  16: 42,
-  17: 34,
-  18: 27,
-  19: 21,
-  20: 16,
+const BASE_POSITION_POINTS: Record<number, number> = {
+  1: 1000, 2: 800, 3: 650, 4: 500, 5: 400,
+  6: 320, 7: 260, 8: 210, 9: 170, 10: 140,
+  11: 115, 12: 95, 13: 78, 14: 64, 15: 52,
+  16: 42, 17: 34, 18: 27, 19: 21, 20: 16,
 };
+
+export const DEFAULT_POSITION_POINTS: Record<number, number> = (() => {
+  const out: Record<number, number> = { ...BASE_POSITION_POINTS };
+  for (let p = 21; p <= 100; p++) {
+    out[p] = Math.max(1, Math.round(16 - (p - 20) * 0.18));
+  }
+  return out;
+})();
 
 export function positionPoints(pos: number | null | undefined): number {
   if (!pos || pos < 1) return 0;
@@ -56,6 +48,8 @@ export const DEFAULT_COMPETITION_WEIGHTS = {
 } as const;
 
 // Title weights keyed by normalised competition keyword.
+export const DEFAULT_NATIONAL_LEAGUE_WEIGHTS: { match: string; label: string; weight: number }[] = [];
+
 export const DEFAULT_TITLE_WEIGHTS: { match: string; label: string; weight: number }[] = [
   { match: "champions league", label: "Champions League", weight: 500 },
   { match: "libertadores", label: "Libertadores", weight: 450 },

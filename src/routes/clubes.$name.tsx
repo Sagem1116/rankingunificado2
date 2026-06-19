@@ -94,7 +94,7 @@ function ClubProfilePage() {
               <tr className="border-b border-border text-muted-foreground text-xs uppercase">
                 <th className="text-left p-3">Época</th>
                 <th className="text-left p-3">Competição</th>
-                <th className="text-left p-3">Divisão</th>
+                <th className="text-left p-3">Divisão / Liga</th>
                 <th className="text-right p-3">Pos.</th>
                 <th className="text-right p-3">Pontos</th>
               </tr>
@@ -104,7 +104,7 @@ function ClubProfilePage() {
                 <tr key={i} className="border-b border-border/50 hover:bg-muted/50">
                   <td className="p-3">{s.year}</td>
                   <td className="p-3">{MODULE_LABEL[s.module]}</td>
-                  <td className="p-3">{s.module === "superleague" && s.division_num ? `Div. ${s.division_num}` : "—"}</td>
+                  <td className="p-3">{s.module === "superleague" ? (s.division_num ? `Div. ${s.division_num}` : "—") : s.division_label || "—"}</td>
                   <td className="p-3 text-right tabular-nums">
                     {s.position ?? "—"} {s.is_champion && <Crown className="size-3 inline text-gold" />}
                   </td>

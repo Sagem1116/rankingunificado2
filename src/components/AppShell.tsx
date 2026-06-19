@@ -37,6 +37,7 @@ const NAV = [
   { to: "/comparar", label: "Comparar", icon: GitCompareArrows },
   { to: "/debug-treinadores", label: "Debug · Treinadores", icon: Bug },
   { to: "/debug-continentais", label: "Debug · Continentais", icon: Bug },
+  { to: "/debug-pontos", label: "Debug · Pontos", icon: Bug },
   { to: "/configuracao", label: "Configuração", icon: Settings },
 ] as const;
 

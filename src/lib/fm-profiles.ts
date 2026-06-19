@@ -4,6 +4,7 @@ import {
   cfgPositionPoints,
   cfgDivisionWeight,
   cfgTitleWeight,
+  cfgNationalLeagueWeight,
   cfgDecay,
   type FmConfig,
 } from "./fm-config";
@@ -14,6 +15,7 @@ export interface ClubSeasonRow {
   year: number;
   module: Module;
   division_num: number | null;
+  division_label: string | null;
   position: number | null;
   is_champion: boolean;
   weighted: number;
@@ -98,27 +100,47 @@ function standingWeighted(
     season_year: number;
     module: Module;
     division_num: number | null;
+    division_label?: string | null;
     position: number | null;
     is_champion: boolean;
+    points?: number | null;
+    played?: number | null;
   },
 ): number {
   const base = cfgPositionPoints(cfg, s.position);
   const compW = cfg.competitionWeights[s.module as keyof typeof cfg.competitionWeights] ?? 1;
-  const divW = s.module === "superleague" ? cfgDivisionWeight(cfg, s.division_num) : 1;
+  const divW =
+    s.module === "superleague"
+      ? cfgDivisionWeight(cfg, s.division_num)
+      : s.module === "national"
+        ? cfgNationalLeagueWeight(cfg, s.division_label)
+        : 1;
   const decay = cfgDecay(cfg, s.season_year, latestYear);
   let weighted = base * compW * divW * decay;
+  const rawLP = Number(s.points ?? 0) || 0;
+  const gp = Number(s.played ?? 0) || 0;
+  const leaguePts = cfg.normalizePointsByGames && gp > 0 ? rawLP / gp : rawLP;
+  if (leaguePts > 0 && (s.module === "superleague" || s.module === "national")) {
+    weighted += leaguePts * compW * divW * decay;
+  }
   if (s.is_champion) {
     const bonus = s.module === "superleague" ? cfg.superleagueChampionBonus : cfg.nationalChampionBonus;
-    weighted += bonus * compW * decay;
+    weighted += bonus * compW * divW * decay;
   }
   return weighted;
 }
 
 function standingRaw(
   cfg: FmConfig,
-  s: { module: Module; position: number | null; is_champion: boolean },
+  s: { module: Module; position: number | null; is_champion: boolean; points?: number | null; played?: number | null },
 ): number {
   let raw = cfgPositionPoints(cfg, s.position);
+  const rawLP = Number(s.points ?? 0) || 0;
+  const gp = Number(s.played ?? 0) || 0;
+  const leaguePts = cfg.normalizePointsByGames && gp > 0 ? rawLP / gp : rawLP;
+  if (leaguePts > 0 && (s.module === "superleague" || s.module === "national")) {
+    raw += leaguePts;
+  }
   if (s.is_champion) {
     const bonus = s.module === "superleague" ? cfg.superleagueChampionBonus : cfg.nationalChampionBonus;
     raw += bonus * 0.5;
@@ -249,6 +271,7 @@ export function buildClubProfile(data: AllData, name: string, cfg: FmConfig = DE
     year: s.season_year,
     module: s.module,
     division_num: s.division_num,
+    division_label: s.division_label ?? null,
     position: s.position,
     is_champion: s.is_champion,
     weighted: standingWeighted(cfg, latestYear, s),
