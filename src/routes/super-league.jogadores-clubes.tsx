@@ -3,8 +3,9 @@ import { useMemo, useState } from "react";
 import { Loader2, Users } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { useRankings } from "@/lib/useRankings";
-import { computeClubAggregates, type ClubAgg } from "@/lib/fm-players";
+import { computeClubAggregates, listPlayerYears, type ClubAgg } from "@/lib/fm-players";
 import { SuperLeagueHeader } from "@/components/SuperLeagueHeader";
+import { SeasonFilter } from "@/components/SeasonFilter";
 
 export const Route = createFileRoute("/super-league/jogadores-clubes")({
   head: () => ({
@@ -31,7 +32,12 @@ const fmt = (n: number) => n.toLocaleString("pt-PT");
 
 function Page() {
   const { data, isLoading } = useRankings();
-  const rows = useMemo(() => (data ? computeClubAggregates(data.data.players, data.data.standings) : []), [data]);
+  const years = useMemo(() => (data ? listPlayerYears(data.data.players) : []), [data]);
+  const [year, setYear] = useState<"total" | number>("total");
+  const rows = useMemo(
+    () => (data ? computeClubAggregates(data.data.players, data.data.standings, year) : []),
+    [data, year],
+  );
   const [sort, setSort] = useState<Key>("ca");
   const sorted = useMemo(() => [...rows].sort((a, b) => b[sort] - a[sort]), [rows, sort]);
 
@@ -43,8 +49,12 @@ function Page() {
       <SuperLeagueHeader
         icon={Users}
         title="Jogadores por Clube"
-        description="Para cada clube da Super League (época mais recente), médias de Reputação Atual (R.A.), Reputação Mundial (R.M.), Capacidade Atual (C.A.) e Potencial (C.P.) dos 28 melhores jogadores, idade média do plantel, e soma de salários e valor de plantel. Clica nos cabeçalhos para ordenar."
+        description="Para cada clube da Super League, médias de Reputação Atual (R.A.), Reputação Mundial (R.M.), Capacidade Atual (C.A.) e Potencial (C.P.) dos 28 melhores jogadores, idade média do plantel, e soma de salários e valor de plantel. Filtra por época ou vê o agregado total."
       />
+      <div className="flex items-center gap-3">
+        <span className="text-sm text-muted-foreground">Filtrar:</span>
+        <SeasonFilter value={year} onChange={setYear} years={years} />
+      </div>
       <Card>
         <CardContent className="p-0 overflow-x-auto">
           <table className="w-full text-sm">

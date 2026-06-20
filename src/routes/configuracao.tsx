@@ -183,8 +183,9 @@ function ConfigPage() {
     setWiping(true);
     try {
       await wipeAllData();
+      qc.removeQueries();
+      await qc.invalidateQueries();
       toast.success("Todos os dados importados foram apagados.");
-      qc.invalidateQueries();
     } catch (e) {
       toast.error("Erro: " + (e as Error).message);
     } finally {

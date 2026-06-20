@@ -272,8 +272,8 @@ export function parseWorkbook(buffer: ArrayBuffer, filename = ""): ParseResult {
     messages.push({ level: "yellow", text: "⚠ Folha 'Treinadores' não encontrada — clubes ficam sem treinador associado" });
   }
 
-  // --- Jogadores (superleague) ---
-  if (kind === "superleague") {
+  // --- Jogadores (superleague + national) ---
+  {
     const jg = sheetRows(wb, "Jogadores");
     if (jg && jg.length) {
       const nameCol = findCol(jg[0], ["Nome", "Name"]);

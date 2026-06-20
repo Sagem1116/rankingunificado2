@@ -7,7 +7,13 @@ import { useRankings } from "@/lib/useRankings";
 import { rankBy, computeRankings } from "@/lib/fm-rankings";
 import { exportRankingsExcel, exportRankingsPDF, type ExportSection } from "@/lib/fm-export";
 import type { ComputeResult } from "@/lib/fm-rankings";
-import { SeasonsRankTable } from "@/components/SeasonsRankTable";
+import { SeasonsRankTable, type ExtraCol } from "@/components/SeasonsRankTable";
+import {
+  computeClubChampions,
+  computeClubPlayoffs,
+  computeCoachChampions,
+  computeCoachPlayoffs,
+} from "@/lib/fm-superleague";
 
 function buildSections(ranks: ComputeResult, mode: "weighted" | "raw"): ExportSection[] {
   return [
@@ -16,6 +22,7 @@ function buildSections(ranks: ComputeResult, mode: "weighted" | "raw"): ExportSe
     { title: "Paises", entries: rankBy(ranks.countries, mode), mode },
   ];
 }
+
 
 export const Route = createFileRoute("/rankings")({
   head: () => ({
@@ -58,6 +65,52 @@ function RankingsPage() {
       data.config,
     );
   }, [data, moduleFilter]);
+
+  const clubNac = useMemo<Record<string, string | null>>(
+    () => data?.data.clubCountry ?? {},
+    [data],
+  );
+  const coachNac = useMemo<Record<string, string | null>>(() => {
+    const m: Record<string, string | null> = {};
+    for (const c of data?.data.coaches ?? []) {
+      if (c.nationality && !m[c.name]) m[c.name] = c.nationality;
+    }
+    return m;
+  }, [data]);
+
+  const slExtras = useMemo(() => {
+    if (!data || moduleFilter !== "superleague") return null;
+    const slSt = data.data.standings.filter((s) => s.module === "superleague");
+    const clubsCh = computeClubChampions(slSt);
+    const clubsPo = computeClubPlayoffs(slSt);
+    const coachesCh = computeCoachChampions(slSt, data.data.coaches);
+    const coachesPo = computeCoachPlayoffs(slSt, data.data.coaches);
+    const num = <T extends { name: string }>(rows: T[], pick: (r: T) => number) => {
+      const m: Record<string, number> = {};
+      for (const r of rows) m[r.name] = pick(r);
+      return m;
+    };
+    const tip = <T extends { name: string }>(rows: T[], pick: (r: T) => string) => {
+      const m: Record<string, string> = {};
+      for (const r of rows) { const t = pick(r); if (t) m[r.name] = t; }
+      return m;
+    };
+    const clubCols: ExtraCol[] = [
+      { key: "promo", label: "Promovido", values: num(clubsCh, (r) => r.p), tips: tip(clubsCh, (r) => r.tipP) },
+      { key: "despro", label: "Despromovido", values: num(clubsCh, (r) => r.d), tips: tip(clubsCh, (r) => r.tipD) },
+      { key: "qsub", label: "Quase Subida", values: num(clubsPo, (r) => r.quaseSubida), tips: tip(clubsPo, (r) => r.tipQS) },
+      { key: "qtit", label: "Quase Título", values: num(clubsPo, (r) => r.quaseTitulo), tips: tip(clubsPo, (r) => r.tipQT) },
+    ];
+    const coachCols: ExtraCol[] = [
+      { key: "promo", label: "Promovido", values: num(coachesCh, (r) => r.p), tips: tip(coachesCh, (r) => r.tipP) },
+      { key: "despro", label: "Despromovido", values: num(coachesCh, (r) => r.d), tips: tip(coachesCh, (r) => r.tipD) },
+      { key: "qsub", label: "Quase Subida", values: num(coachesPo, (r) => r.quaseSubida), tips: tip(coachesPo, (r) => r.tipQS) },
+      { key: "qtit", label: "Quase Título", values: num(coachesPo, (r) => r.quaseTitulo), tips: tip(coachesPo, (r) => r.tipQT) },
+    ];
+    return { clubCols, coachCols };
+  }, [data, moduleFilter]);
+
+
 
   if (isLoading) {
     return (
@@ -117,13 +170,31 @@ function RankingsPage() {
           <TabsTrigger value="countries">Países</TabsTrigger>
         </TabsList>
         <TabsContent value="clubs">
-          <SeasonsRankTable entries={ranks.clubs} evolution={ranks.evolution.clubs} years={ranks.years} mode={mode} kind="clubes" />
+          <SeasonsRankTable
+            entries={ranks.clubs}
+            evolution={ranks.evolution.clubs}
+            years={ranks.years}
+            mode={mode}
+            kind="clubes"
+            breakdown={ranks.breakdown.clubs}
+            nacMap={clubNac}
+            extraCols={slExtras?.clubCols}
+          />
         </TabsContent>
         <TabsContent value="coaches">
-          <SeasonsRankTable entries={ranks.coaches} evolution={ranks.evolution.coaches} years={ranks.years} mode={mode} kind="treinadores" />
+          <SeasonsRankTable
+            entries={ranks.coaches}
+            evolution={ranks.evolution.coaches}
+            years={ranks.years}
+            mode={mode}
+            kind="treinadores"
+            breakdown={ranks.breakdown.coaches}
+            nacMap={coachNac}
+            extraCols={slExtras?.coachCols}
+          />
         </TabsContent>
         <TabsContent value="countries">
-          <SeasonsRankTable entries={ranks.countries} evolution={ranks.evolution.countries} years={ranks.years} mode={mode} kind="paises" />
+          <SeasonsRankTable entries={ranks.countries} evolution={ranks.evolution.countries} years={ranks.years} mode={mode} kind="paises" breakdown={ranks.breakdown.countries} />
         </TabsContent>
       </Tabs>
     </div>

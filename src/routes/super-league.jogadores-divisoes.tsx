@@ -3,8 +3,9 @@ import { useMemo, useState } from "react";
 import { Loader2, Layers } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { useRankings } from "@/lib/useRankings";
-import { computeDivisionAggregates, type DivisionAgg } from "@/lib/fm-players";
+import { computeDivisionAggregates, listPlayerYears, type DivisionAgg } from "@/lib/fm-players";
 import { SuperLeagueHeader } from "@/components/SuperLeagueHeader";
+import { SeasonFilter } from "@/components/SeasonFilter";
 
 export const Route = createFileRoute("/super-league/jogadores-divisoes")({
   head: () => ({
@@ -31,7 +32,12 @@ const fmt = (n: number) => n.toLocaleString("pt-PT");
 
 function Page() {
   const { data, isLoading } = useRankings();
-  const rows = useMemo(() => (data ? computeDivisionAggregates(data.data.players, data.data.standings) : []), [data]);
+  const years = useMemo(() => (data ? listPlayerYears(data.data.players) : []), [data]);
+  const [year, setYear] = useState<"total" | number>("total");
+  const rows = useMemo(
+    () => (data ? computeDivisionAggregates(data.data.players, data.data.standings, year) : []),
+    [data, year],
+  );
   const [sort, setSort] = useState<Key | "division">("division");
   const sorted = useMemo(() => [...rows].sort((a, b) => (sort === "division" ? a.division - b.division : b[sort] - a[sort])), [rows, sort]);
 
@@ -43,8 +49,12 @@ function Page() {
       <SuperLeagueHeader
         icon={Layers}
         title="Jogadores por Divisão"
-        description="Mesmos indicadores de jogadores agregados por divisão da Super League (época mais recente): médias de R.A., R.M., C.A. e C.P. (28 melhores por clube), idade média e somas de salários e valor. Clica nos cabeçalhos para ordenar."
+        description="Indicadores de jogadores agregados por divisão da Super League: médias de R.A., R.M., C.A. e C.P. (28 melhores por clube), idade média e somas de salários e valor. Filtra por época ou vê o agregado total."
       />
+      <div className="flex items-center gap-3">
+        <span className="text-sm text-muted-foreground">Filtrar:</span>
+        <SeasonFilter value={year} onChange={setYear} years={years} />
+      </div>
       <Card>
         <CardContent className="p-0 overflow-x-auto">
           <table className="w-full text-sm">

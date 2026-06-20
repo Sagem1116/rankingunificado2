@@ -1,15 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { UploadCloud, FileSpreadsheet, Loader2, CheckCircle2, AlertTriangle, XCircle } from "lucide-react";
+import { UploadCloud, FileSpreadsheet, Loader2, CheckCircle2, AlertTriangle, XCircle, Trash2, History } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { parseWorkbook, type ParseResult, type Severity } from "@/lib/fm-parser";
-import { importSeason } from "@/lib/fm-db";
+import { importSeason, fetchImports, deleteImport, type ImportLogRow } from "@/lib/fm-db";
 
 export const Route = createFileRoute("/importar")({
   head: () => ({
@@ -201,7 +201,90 @@ function ImportPage() {
           )}
         </div>
       )}
+      <ImportsHistory />
     </div>
+  );
+}
+
+function ImportsHistory() {
+  const qc = useQueryClient();
+  const { data: imports, isLoading } = useQuery({ queryKey: ["fm-imports"], queryFn: fetchImports });
+  const [busy, setBusy] = useState<string | null>(null);
+
+  async function handleDelete(row: ImportLogRow) {
+    const label = `${row.module === "superleague" ? "SuperLeague" : "Ligas Nacionais"} · ${row.season_year} · ${row.filename ?? "—"}`;
+    if (!confirm(`Eliminar importação "${label}"?\n\nIsto remove TODOS os dados desta época para este módulo (classificações, treinadores${row.module === "national" ? ", continentais" : ", jogadores"}).`)) return;
+    setBusy(row.id);
+    try {
+      await deleteImport(row);
+      qc.removeQueries();
+      await qc.invalidateQueries();
+      toast.success("Importação eliminada");
+    } catch (err) {
+      toast.error(`Erro ao eliminar: ${(err as Error).message}`);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base flex items-center gap-2"><History className="size-4 text-primary" /> Importações realizadas</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <p className="text-sm text-muted-foreground flex items-center gap-2"><Loader2 className="size-4 animate-spin" /> A carregar…</p>
+        ) : !imports || imports.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Sem importações registadas.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-left text-xs uppercase text-muted-foreground border-b border-border">
+                <tr>
+                  <th className="py-2 pr-3">Data</th>
+                  <th className="py-2 pr-3">Época</th>
+                  <th className="py-2 pr-3">Módulo</th>
+                  <th className="py-2 pr-3">Ficheiro</th>
+                  <th className="py-2 pr-3">Estado</th>
+                  <th className="py-2 pr-3 text-right">Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {imports.map((r) => (
+                  <tr key={r.id} className="border-b border-border/50 hover:bg-muted/40">
+                    <td className="py-2 pr-3 whitespace-nowrap">{new Date(r.created_at).toLocaleString("pt-PT")}</td>
+                    <td className="py-2 pr-3 font-medium">{r.season_year}</td>
+                    <td className="py-2 pr-3">
+                      <Badge variant="secondary">{r.module === "superleague" ? "SuperLeague" : "Ligas Nacionais"}</Badge>
+                    </td>
+                    <td className="py-2 pr-3 truncate max-w-[260px]">{r.filename ?? "—"}</td>
+                    <td className="py-2 pr-3">
+                      {r.status === "ok" ? (
+                        <Badge className="bg-success text-success-foreground">OK</Badge>
+                      ) : (
+                        <Badge variant="destructive">{r.status}</Badge>
+                      )}
+                    </td>
+                    <td className="py-2 pr-3 text-right">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-destructive hover:text-destructive"
+                        disabled={busy === r.id}
+                        onClick={() => handleDelete(r)}
+                      >
+                        {busy === r.id ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

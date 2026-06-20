@@ -2,21 +2,34 @@ import { useMemo, useState } from "react";
 import { ArrowDown, ChevronsUpDown } from "lucide-react";
 import type { RankingEntry } from "@/lib/fm-rankings";
 
-export type SortKey = "points" | "titles";
+export type SortKey = "points" | "titles" | `extra:${string}`;
 
-export function useEntrySort(entries: RankingEntry[], mode: "weighted" | "raw") {
+export function useEntrySort(
+  entries: RankingEntry[],
+  mode: "weighted" | "raw",
+  extras?: Record<string, Record<string, number>>,
+) {
   const [sortKey, setSortKey] = useState<SortKey>("points");
   const sorted = useMemo(() => {
     const arr = [...entries];
+    const pts = (e: RankingEntry) => (mode === "raw" ? e.raw : e.weighted);
     arr.sort((a, b) => {
       if (sortKey === "titles") {
         if (b.titles !== a.titles) return b.titles - a.titles;
-        return (mode === "raw" ? b.raw - a.raw : b.weighted - a.weighted);
+        return pts(b) - pts(a);
       }
-      return mode === "raw" ? b.raw - a.raw : b.weighted - a.weighted;
+      if (typeof sortKey === "string" && sortKey.startsWith("extra:") && extras) {
+        const k = sortKey.slice(6);
+        const map = extras[k] ?? {};
+        const va = map[a.name] ?? 0;
+        const vb = map[b.name] ?? 0;
+        if (vb !== va) return vb - va;
+        return pts(b) - pts(a);
+      }
+      return pts(b) - pts(a);
     });
     return arr;
-  }, [entries, sortKey, mode]);
+  }, [entries, sortKey, mode, extras]);
   return { sorted, sortKey, setSortKey };
 }
 

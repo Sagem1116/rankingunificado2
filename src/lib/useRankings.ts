@@ -19,9 +19,21 @@ export function useRankings() {
       );
       return { data, ranks, config: cfg.config, activeProfileId: cfg.activeId };
     },
+    staleTime: 24 * 60 * 60 * 1000, // 24h — invalidated explicitly on import/config save
+    gcTime: 7 * 24 * 60 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
   });
 }
 
 export function useActiveConfig() {
-  return useQuery({ queryKey: ["fm-config"], queryFn: fetchActiveConfig });
+  return useQuery({
+    queryKey: ["fm-config"],
+    queryFn: fetchActiveConfig,
+    staleTime: 24 * 60 * 60 * 1000,
+    gcTime: 7 * 24 * 60 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+  });
 }

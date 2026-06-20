@@ -163,7 +163,7 @@ const addYM = (m: YearMap, year: number, name: string, w: number) => {
   inner.set(name, (inner.get(name) ?? 0) + w);
 };
 
-interface YearMaps {
+export interface YearMaps {
   clubYearW: YearMap;
   clubYearR: YearMap;
   countryYearW: YearMap;
@@ -172,26 +172,36 @@ interface YearMaps {
   coachYearR: YearMap;
 }
 
-let _yearMapsCache: { key: unknown; cfg: unknown; maps: YearMaps } | null = null;
-function buildYearMaps(data: AllData, cfg: FmConfig): YearMaps {
-  if (_yearMapsCache && _yearMapsCache.key === data && _yearMapsCache.cfg === cfg) {
-    return _yearMapsCache.maps;
+export type RankingSource = "all" | "superleague" | "national" | "continental";
+
+const _yearMapsCacheMap = new Map<string, { key: unknown; cfg: unknown; maps: YearMaps }>();
+export function buildYearMaps(data: AllData, cfg: FmConfig = DEFAULT_CONFIG, source: RankingSource = "all"): YearMaps {
+  const cached = _yearMapsCacheMap.get(source);
+  if (cached && cached.key === data && cached.cfg === cfg) {
+    return cached.maps;
   }
   const latestYear = latestYearOf(data);
   const clubYearW: YearMap = new Map();
   const clubYearR: YearMap = new Map();
-  for (const s of data.standings) {
-    addYM(clubYearW, s.season_year, s.club_name, standingWeighted(cfg, latestYear, s));
-    addYM(clubYearR, s.season_year, s.club_name, standingRaw(cfg, s));
+  const includeStandings = source === "all" || source === "superleague" || source === "national";
+  const includeContinental = source === "all" || source === "continental";
+  if (includeStandings) {
+    for (const s of data.standings) {
+      if (source !== "all" && s.module !== source) continue;
+      addYM(clubYearW, s.season_year, s.club_name, standingWeighted(cfg, latestYear, s));
+      addYM(clubYearR, s.season_year, s.club_name, standingRaw(cfg, s));
+    }
   }
-  for (const c of data.continental) {
-    const { weight } = cfgTitleWeight(cfg, c.competition);
-    const compW = cfg.competitionWeights.continental * cfgDecay(cfg, c.season_year, latestYear);
-    for (const team of [c.team1, c.team2]) {
-      if (!team) continue;
-      const won = c.winner === team;
-      addYM(clubYearW, c.season_year, team, weight * compW * (won ? 1 : 0.3));
-      addYM(clubYearR, c.season_year, team, won ? 200 : 50);
+  if (includeContinental) {
+    for (const c of data.continental) {
+      const { weight } = cfgTitleWeight(cfg, c.competition);
+      const compW = cfg.competitionWeights.continental * cfgDecay(cfg, c.season_year, latestYear);
+      for (const team of [c.team1, c.team2]) {
+        if (!team) continue;
+        const won = c.winner === team;
+        addYM(clubYearW, c.season_year, team, weight * compW * (won ? 1 : 0.3));
+        addYM(clubYearR, c.season_year, team, won ? 200 : 50);
+      }
     }
   }
   const countryYearW: YearMap = new Map();
@@ -212,25 +222,31 @@ function buildYearMaps(data: AllData, cfg: FmConfig): YearMaps {
   }
   const sKeyW = new Map<string, number>();
   const sKeyR = new Map<string, number>();
-  for (const s of data.standings) {
-    const k = `${s.season_year}|${s.module}|${s.club_name}`;
-    sKeyW.set(k, (sKeyW.get(k) ?? 0) + standingWeighted(cfg, latestYear, s));
-    sKeyR.set(k, (sKeyR.get(k) ?? 0) + standingRaw(cfg, s));
+  if (includeStandings) {
+    for (const s of data.standings) {
+      if (source !== "all" && s.module !== source) continue;
+      const k = `${s.season_year}|${s.module}|${s.club_name}`;
+      sKeyW.set(k, (sKeyW.get(k) ?? 0) + standingWeighted(cfg, latestYear, s));
+      sKeyR.set(k, (sKeyR.get(k) ?? 0) + standingRaw(cfg, s));
+    }
   }
   const coachYearW: YearMap = new Map();
   const coachYearR: YearMap = new Map();
   for (const a of data.coaches) {
     if (!a.club_name) continue;
+    if (source !== "all" && source !== "continental" && a.module !== source) continue;
+    if (source === "continental") continue;
     const k = `${a.season_year}|${a.module}|${a.club_name}`;
     addYM(coachYearW, a.season_year, a.name, sKeyW.get(k) ?? 0);
     addYM(coachYearR, a.season_year, a.name, sKeyR.get(k) ?? 0);
   }
   const maps = { clubYearW, clubYearR, countryYearW, countryYearR, coachYearW, coachYearR };
-  _yearMapsCache = { key: data, cfg, maps };
+  _yearMapsCacheMap.set(source, { key: data, cfg, maps });
   return maps;
 }
 
-function rankIn(inner: Map<string, number> | undefined, name: string): number | null {
+
+export function rankIn(inner: Map<string, number> | undefined, name: string): number | null {
   if (!inner) return null;
   const w = inner.get(name);
   if (w == null) return null;
@@ -241,6 +257,7 @@ function rankIn(inner: Map<string, number> | undefined, name: string): number | 
   }
   return rank;
 }
+
 
 function chartWithRanks(
   yearW: Map<number, number>,

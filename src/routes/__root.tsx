@@ -1,4 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
+import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persister";
+import { get, set, del } from "idb-keyval";
 import {
   Outlet,
   Link,
@@ -123,17 +126,52 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
+const PERSIST_BUSTER = "fm-v2";
+
+const persister =
+  typeof window !== "undefined"
+    ? createAsyncStoragePersister({
+        storage: {
+          getItem: (key) => get<string>(key).then((v) => v ?? null),
+          setItem: (key, value) => set(key, value),
+          removeItem: (key) => del(key),
+        },
+        key: "fm-rq-cache",
+        throttleTime: 1000,
+      })
+    : null;
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
-  return (
-    <QueryClientProvider client={queryClient}>
-      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <div className="dark">
-        <AppShell>
-          <Outlet />
-        </AppShell>
-      </div>
-    </QueryClientProvider>
+  const inner = (
+    <div className="dark">
+      <AppShell>
+        <Outlet />
+      </AppShell>
+    </div>
   );
+
+  if (persister) {
+    return (
+      <PersistQueryClientProvider
+        client={queryClient}
+        persistOptions={{
+          persister,
+          maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+          buster: PERSIST_BUSTER,
+          dehydrateOptions: {
+            shouldDehydrateQuery: (q) => {
+              const k = q.queryKey?.[0];
+              return k === "fm-all-data" || k === "fm-config";
+            },
+          },
+        }}
+      >
+        {inner}
+      </PersistQueryClientProvider>
+    );
+  }
+
+  return <QueryClientProvider client={queryClient}>{inner}</QueryClientProvider>;
 }

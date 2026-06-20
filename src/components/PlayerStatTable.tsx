@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { PlayerStatRow } from "@/lib/fm-players";
@@ -19,7 +20,11 @@ export function PlayerStatTable({ rows, years }: { rows: PlayerStatRow[]; years:
             {rows.slice(0, 300).map((r, i) => (
               <tr key={r.name + i} className="border-b border-border/50 hover:bg-muted/50">
                 <td className={`p-3 font-bold ${i < 3 ? "text-gold" : "text-muted-foreground"}`}>{i + 1}</td>
-                <td className="p-3 font-medium">{r.name}</td>
+                <td className="p-3 font-medium">
+                  <Link to="/jogadores/$name" params={{ name: r.name }} className="hover:text-primary hover:underline">
+                    {r.name}
+                  </Link>
+                </td>
                 {years.map((y) => {
                   const v = r.perSeason[y];
                   const club = r.perSeasonClub[y];

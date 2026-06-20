@@ -2,6 +2,31 @@ import { supabase } from "@/integrations/supabase/client";
 import type { ParseResult } from "./fm-parser";
 import type { StandingRow, ContinentalRow, CoachRow } from "./fm-rankings";
 
+// Supabase PostgREST caps each request (default 1000 rows). Paginate with .range()
+// and advance by the actual returned length so we work regardless of the server cap.
+async function fetchAllRows<T = Record<string, unknown>>(
+  table: string,
+  columns: string,
+): Promise<T[]> {
+  const pageSize = 1000;
+  const out: T[] = [];
+  let from = 0;
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase as any)
+      .from(table)
+      .select(columns)
+      .range(from, from + pageSize - 1);
+    if (error) throw new Error(`${table}: ${error.message}`);
+    const rows = (data ?? []) as T[];
+    out.push(...rows);
+    if (rows.length === 0 || rows.length < pageSize) break;
+    from += rows.length;
+  }
+  return out;
+}
+
 async function chunkInsert(table: string, rows: Record<string, unknown>[]) {
   const size = 500;
   for (let i = 0; i < rows.length; i += size) {
@@ -38,9 +63,7 @@ export async function importSeason(parse: ParseResult, year: number, filename: s
   if (module === "national") {
     await supabase.from("continental_results").delete().eq("season_id", seasonId);
   }
-  if (module === "superleague") {
-    await supabase.from("players").delete().eq("season_id", seasonId);
-  }
+  await supabase.from("players").delete().eq("season_id", seasonId).eq("module", module);
 
   // 3. Upsert countries
   const countryNames = [...new Set(parse.data.teamCountry.map((t) => t.country).filter(Boolean) as string[])];
@@ -135,8 +158,8 @@ export async function importSeason(parse: ParseResult, year: number, filename: s
     .filter(Boolean) as Record<string, unknown>[];
   if (assignPayload.length) await chunkInsert("coach_assignments", assignPayload);
 
-  // 7b. Players (superleague snapshot)
-  if (module === "superleague" && parse.data.players.length) {
+  // 7b. Players (snapshot — superleague & national)
+  if (parse.data.players.length) {
     const playersPayload = parse.data.players.map((p) => ({
       season_id: seasonId,
       module,
@@ -179,6 +202,46 @@ export async function importSeason(parse: ParseResult, year: number, filename: s
   };
 }
 
+export interface ImportLogRow {
+  id: string;
+  filename: string | null;
+  module: "superleague" | "national";
+  status: string;
+  created_at: string;
+  season_id: string;
+  season_year: number;
+}
+
+export async function fetchImports(): Promise<ImportLogRow[]> {
+  const [{ data: imports }, { data: seasons }] = await Promise.all([
+    supabase.from("imports").select("id,filename,module,status,created_at,season_id").order("created_at", { ascending: false }),
+    supabase.from("seasons").select("id,year"),
+  ]);
+  const yearMap = new Map((seasons ?? []).map((s) => [s.id, s.year]));
+  return (imports ?? []).map((i) => ({
+    id: i.id,
+    filename: i.filename,
+    module: i.module as "superleague" | "national",
+    status: i.status,
+    created_at: i.created_at,
+    season_id: i.season_id,
+    season_year: yearMap.get(i.season_id) ?? 0,
+  }));
+}
+
+export async function deleteImport(row: ImportLogRow): Promise<void> {
+  // Remove the data slice for this season+module, then the import log entry.
+  await supabase.from("standings").delete().eq("season_id", row.season_id).eq("module", row.module);
+  await supabase.from("coach_assignments").delete().eq("season_id", row.season_id).eq("module", row.module);
+  if (row.module === "national") {
+    await supabase.from("continental_results").delete().eq("season_id", row.season_id);
+  }
+  if (row.module === "superleague") {
+    await supabase.from("players").delete().eq("season_id", row.season_id);
+  }
+  await supabase.from("imports").delete().eq("id", row.id);
+}
+
 export interface AllData {
   seasons: { id: string; year: number }[];
   standings: StandingRow[];
@@ -206,83 +269,110 @@ export interface PlayerRow {
 }
 
 export async function fetchAllData(): Promise<AllData> {
-  const [{ data: seasons }, { data: clubs }, { data: countries }] = await Promise.all([
-    supabase.from("seasons").select("id,year").order("year"),
-    supabase.from("clubs").select("name,country_id"),
-    supabase.from("countries").select("id,name"),
+  const [seasonsAll, clubsAll, countriesAll] = await Promise.all([
+    fetchAllRows<{ id: string; year: number }>("seasons", "id,year"),
+    fetchAllRows<{ name: string; country_id: string | null }>("clubs", "name,country_id"),
+    fetchAllRows<{ id: string; name: string }>("countries", "id,name"),
   ]);
-  const seasonMap = new Map((seasons ?? []).map((s) => [s.id, s.year]));
-  const countryById = new Map((countries ?? []).map((c) => [c.id, c.name]));
+  const seasonMap = new Map(seasonsAll.map((s) => [s.id, s.year]));
+  const countryById = new Map(countriesAll.map((c) => [c.id, c.name]));
   const clubCountry: Record<string, string | null> = {};
-  (clubs ?? []).forEach((c) => {
+  clubsAll.forEach((c) => {
     clubCountry[c.name] = c.country_id ? countryById.get(c.country_id) ?? null : null;
   });
 
-  const [{ data: standings }, { data: continental }, { data: coachAssign }] = await Promise.all([
-    supabase.from("standings").select("season_id,module,division_num,division_label,position,club_name,is_champion,info,points,played"),
-    supabase.from("continental_results").select("season_id,competition,team1,team2,winner_club_id"),
-    supabase.from("coach_assignments").select("season_id,module,coach_name,club_name"),
+  const [standings, continental, coachAssign, playersRaw, clubIds, coachNat] = await Promise.all([
+    fetchAllRows<Record<string, unknown>>(
+      "standings",
+      "season_id,module,division_num,division_label,position,club_name,is_champion,info,points,played",
+    ),
+    fetchAllRows<Record<string, unknown>>(
+      "continental_results",
+      "season_id,competition,team1,team2,winner_club_id",
+    ),
+    fetchAllRows<Record<string, unknown>>(
+      "coach_assignments",
+      "season_id,module,coach_name,club_name",
+    ),
+    fetchAllRows<Record<string, unknown>>(
+      "players",
+      "season_id,idu,name,league,club_name,age,gls,ast,salary,ra,rm,ca,cp,vp",
+    ),
+    fetchAllRows<{ id: string; name: string }>("clubs", "id,name"),
+    fetchAllRows<{ name: string; nationality: string | null }>("coaches", "name,nationality"),
   ]);
-  const { data: playersRaw } = await supabase
-    .from("players")
-    .select("season_id,idu,name,league,club_name,age,gls,ast,salary,ra,rm,ca,cp,vp");
 
-  // map winner_club_id back to name
   const clubIdName = new Map<string, string>();
-  // we only have names in clubCountry; fetch id->name
-  const { data: clubIds } = await supabase.from("clubs").select("id,name");
-  (clubIds ?? []).forEach((c) => clubIdName.set(c.id, c.name));
+  clubIds.forEach((c) => clubIdName.set(c.id, c.name));
 
-  // coach nationality lookup (latest known)
-  const { data: coachNat } = await supabase.from("coaches").select("name,nationality");
   const coachNatMap = new Map<string, string | null>();
-  (coachNat ?? []).forEach((c) => { if (c.nationality) coachNatMap.set(c.name, c.nationality); });
+  coachNat.forEach((c) => { if (c.nationality) coachNatMap.set(c.name, c.nationality); });
 
-  const standingRows: StandingRow[] = (standings ?? []).map((s) => ({
-    season_year: seasonMap.get(s.season_id) ?? 0,
-    module: s.module,
-    division_num: s.division_num,
-    division_label: (s as { division_label?: string | null }).division_label ?? null,
-    position: s.position,
-    club_name: s.club_name,
-    is_champion: s.is_champion,
-    info: s.info,
-    points: (s as { points?: number | null }).points ?? null,
-    played: (s as { played?: number | null }).played ?? null,
-  }));
-  const continentalRows: ContinentalRow[] = (continental ?? []).map((c) => ({
-    season_year: seasonMap.get(c.season_id) ?? 0,
-    competition: c.competition,
-    team1: c.team1,
-    team2: c.team2,
-    winner: c.winner_club_id ? clubIdName.get(c.winner_club_id) ?? null : null,
-  }));
-  const coachRows: CoachRow[] = (coachAssign ?? []).map((c) => ({
-    season_year: seasonMap.get(c.season_id) ?? 0,
-    module: c.module,
-    name: c.coach_name,
-    nationality: coachNatMap.get(c.coach_name) ?? null,
-    club_name: c.club_name,
-  }));
-  const playerRows: PlayerRow[] = (playersRaw ?? []).map((p) => ({
-    season_year: seasonMap.get(p.season_id) ?? 0,
-    idu: p.idu,
-    name: p.name,
-    league: p.league,
-    club_name: p.club_name,
-    age: p.age,
-    gls: Number(p.gls) || 0,
-    ast: Number(p.ast) || 0,
-    salary: Number(p.salary) || 0,
-    ra: Number(p.ra) || 0,
-    rm: Number(p.rm) || 0,
-    ca: Number(p.ca) || 0,
-    cp: Number(p.cp) || 0,
-    vp: Number(p.vp) || 0,
-  }));
+  const standingRows: StandingRow[] = standings.map((row) => {
+    const s = row as Record<string, unknown> as {
+      season_id: string; module: StandingRow["module"]; division_num: number;
+      division_label?: string | null; position: number; club_name: string;
+      is_champion: boolean; info: string | null; points?: number | null; played?: number | null;
+    };
+    return {
+      season_year: seasonMap.get(s.season_id) ?? 0,
+      module: s.module,
+      division_num: s.division_num,
+      division_label: s.division_label ?? null,
+      position: s.position,
+      club_name: s.club_name,
+      is_champion: s.is_champion,
+      info: s.info,
+      points: s.points ?? null,
+      played: s.played ?? null,
+    };
+  });
+  const continentalRows: ContinentalRow[] = continental.map((row) => {
+    const c = row as { season_id: string; competition: string; team1: string | null; team2: string | null; winner_club_id: string | null };
+    return {
+      season_year: seasonMap.get(c.season_id) ?? 0,
+      competition: c.competition,
+      team1: c.team1,
+      team2: c.team2,
+      winner: c.winner_club_id ? clubIdName.get(c.winner_club_id) ?? null : null,
+    };
+  });
+  const coachRows: CoachRow[] = coachAssign.map((row) => {
+    const c = row as { season_id: string; module: CoachRow["module"]; coach_name: string; club_name: string | null };
+    return {
+      season_year: seasonMap.get(c.season_id) ?? 0,
+      module: c.module,
+      name: c.coach_name,
+      nationality: coachNatMap.get(c.coach_name) ?? null,
+      club_name: c.club_name,
+    };
+  });
+  const playerRows: PlayerRow[] = playersRaw.map((row) => {
+    const p = row as Record<string, unknown> as {
+      season_id: string; idu: string | null; name: string; league: string | null;
+      club_name: string | null; age: number | null;
+      gls: number; ast: number; salary: number; ra: number; rm: number; ca: number; cp: number; vp: number;
+    };
+    return {
+      season_year: seasonMap.get(p.season_id) ?? 0,
+      idu: p.idu,
+      name: p.name,
+      league: p.league,
+      club_name: p.club_name,
+      age: p.age,
+      gls: Number(p.gls) || 0,
+      ast: Number(p.ast) || 0,
+      salary: Number(p.salary) || 0,
+      ra: Number(p.ra) || 0,
+      rm: Number(p.rm) || 0,
+      ca: Number(p.ca) || 0,
+      cp: Number(p.cp) || 0,
+      vp: Number(p.vp) || 0,
+    };
+  });
 
   return {
-    seasons: (seasons ?? []).map((s) => ({ id: s.id, year: s.year })),
+    seasons: seasonsAll.map((s) => ({ id: s.id, year: s.year })),
     standings: standingRows,
     continental: continentalRows,
     coaches: coachRows,
