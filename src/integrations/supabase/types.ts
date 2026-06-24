@@ -281,53 +281,6 @@ export type Database = {
           },
         ]
       }
-      international_results: {
-        Row: {
-          coach1: string | null
-          coach2: string | null
-          competition: string
-          created_at: string
-          id: string
-          result: string | null
-          season_id: string
-          team1: string | null
-          team2: string | null
-          winner: string | null
-        }
-        Insert: {
-          coach1?: string | null
-          coach2?: string | null
-          competition: string
-          created_at?: string
-          id?: string
-          result?: string | null
-          season_id: string
-          team1?: string | null
-          team2?: string | null
-          winner?: string | null
-        }
-        Update: {
-          coach1?: string | null
-          coach2?: string | null
-          competition?: string
-          created_at?: string
-          id?: string
-          result?: string | null
-          season_id?: string
-          team1?: string | null
-          team2?: string | null
-          winner?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "international_results_season_id_fkey"
-            columns: ["season_id"]
-            isOneToOne: false
-            referencedRelation: "seasons"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       players: {
         Row: {
           age: number | null
