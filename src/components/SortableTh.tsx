@@ -2,12 +2,13 @@ import { useMemo, useState } from "react";
 import { ArrowDown, ChevronsUpDown } from "lucide-react";
 import type { RankingEntry } from "@/lib/fm-rankings";
 
-export type SortKey = "points" | "titles" | `extra:${string}`;
+export type SortKey = "points" | "titles" | `extra:${string}` | `year:${number}`;
 
 export function useEntrySort(
   entries: RankingEntry[],
   mode: "weighted" | "raw",
   extras?: Record<string, Record<string, number>>,
+  evolution?: Record<string, Record<number, number>>,
 ) {
   const [sortKey, setSortKey] = useState<SortKey>("points");
   const sorted = useMemo(() => {
@@ -26,10 +27,17 @@ export function useEntrySort(
         if (vb !== va) return vb - va;
         return pts(b) - pts(a);
       }
+      if (typeof sortKey === "string" && sortKey.startsWith("year:") && evolution) {
+        const y = Number(sortKey.slice(5));
+        const va = evolution[a.name]?.[y] ?? 0;
+        const vb = evolution[b.name]?.[y] ?? 0;
+        if (vb !== va) return vb - va;
+        return pts(b) - pts(a);
+      }
       return pts(b) - pts(a);
     });
     return arr;
-  }, [entries, sortKey, mode, extras]);
+  }, [entries, sortKey, mode, extras, evolution]);
   return { sorted, sortKey, setSortKey };
 }
 

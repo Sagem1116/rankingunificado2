@@ -50,6 +50,14 @@ export const DEFAULT_COMPETITION_WEIGHTS = {
 // Title weights keyed by normalised competition keyword.
 export const DEFAULT_NATIONAL_LEAGUE_WEIGHTS: { match: string; label: string; weight: number }[] = [];
 
+// Default weights for international (national-team) competitions.
+export const DEFAULT_INTERNATIONAL_WEIGHTS: { match: string; label: string; weight: number }[] = [
+  { match: "mundial", label: "Mundial", weight: 600 },
+  { match: "euro", label: "Euro", weight: 400 },
+  { match: "copa america", label: "Copa América", weight: 350 },
+  { match: "nations league", label: "Nations League", weight: 250 },
+];
+
 export const DEFAULT_TITLE_WEIGHTS: { match: string; label: string; weight: number }[] = [
   { match: "champions league", label: "Champions League", weight: 500 },
   { match: "libertadores", label: "Libertadores", weight: 450 },

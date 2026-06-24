@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo } from "react";
-import { Loader2, User, ArrowLeft, Goal, Handshake } from "lucide-react";
+import { Loader2, User, ArrowLeft, Goal, Handshake, TrendingUp } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { Sparkline } from "@/components/Sparkline";
 import { useRankings } from "@/lib/useRankings";
 import { buildPlayerProfile } from "@/lib/fm-players";
 
@@ -70,12 +71,9 @@ function PlayerProfilePage() {
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-4">
-        <Stat label="Épocas" value={profile.totals.seasons} />
-        <Stat label="Golos" value={profile.totals.gls.toLocaleString("pt-PT")} />
-        <Stat label="Assistências" value={profile.totals.ast.toLocaleString("pt-PT")} />
-        <Stat label="G + A" value={(profile.totals.gls + profile.totals.ast).toLocaleString("pt-PT")} />
-      </div>
+      <Aggregates profile={profile} />
+
+
 
       <Card>
         <CardContent className="p-0 overflow-x-auto">
@@ -122,3 +120,57 @@ function PlayerProfilePage() {
     </div>
   );
 }
+
+function Aggregates({ profile }: { profile: ReturnType<typeof buildPlayerProfile> }) {
+  if (!profile) return null;
+  const h = profile.history;
+  const caValues = h.map((x) => x.ca).filter((v) => v > 0);
+  const peak = h.reduce<{ ca: number; year: number; club: string | null } | null>(
+    (best, cur) => (cur.ca > (best?.ca ?? 0) ? { ca: cur.ca, year: cur.year, club: cur.club } : best),
+    null,
+  );
+  const clubs = new Set(h.map((x) => x.club).filter(Boolean) as string[]);
+  const leagues = new Set(h.map((x) => x.league).filter(Boolean) as string[]);
+  const totalSalary = h.reduce((a, b) => a + (b.salary || 0), 0);
+  const lastVP = [...h].reverse().find((x) => x.vp > 0)?.vp ?? 0;
+  const fmt = (n: number) => n.toLocaleString("pt-PT");
+
+  return (
+    <>
+      <div className="grid gap-3 sm:grid-cols-4">
+        <Stat label="Épocas" value={profile.totals.seasons} />
+        <Stat label="Golos" value={fmt(profile.totals.gls)} />
+        <Stat label="Assistências" value={fmt(profile.totals.ast)} />
+        <Stat label="G + A" value={fmt(profile.totals.gls + profile.totals.ast)} />
+      </div>
+      <div className="grid gap-3 sm:grid-cols-4">
+        <Stat
+          label={peak ? `Pico C.A. (${peak.year})` : "Pico C.A."}
+          value={peak ? `${peak.ca}` : "—"}
+        />
+        <Stat label="Clubes distintos" value={clubs.size} />
+        <Stat label="Ligas distintas" value={leagues.size} />
+        <Stat label="Valor atual" value={lastVP ? `€${fmt(lastVP)}` : "—"} />
+      </div>
+      <Card>
+        <CardContent className="p-4 flex items-center justify-between gap-4">
+          <div>
+            <p className="text-xs uppercase tracking-wide text-muted-foreground flex items-center gap-1">
+              <TrendingUp className="size-3.5" /> Evolução C.A.
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {caValues.length >= 2
+                ? `${caValues[0]} → ${caValues[caValues.length - 1]} ao longo de ${caValues.length} épocas`
+                : "Histórico insuficiente"}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Salário total acumulado: €{fmt(totalSalary)}
+            </p>
+          </div>
+          <Sparkline values={caValues} width={180} height={40} />
+        </CardContent>
+      </Card>
+    </>
+  );
+}
+

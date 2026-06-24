@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { ParseResult } from "./fm-parser";
-import type { StandingRow, ContinentalRow, CoachRow } from "./fm-rankings";
+import type { StandingRow, ContinentalRow, CoachRow, InternationalRow } from "./fm-rankings";
 
 // Supabase PostgREST caps each request (default 1000 rows). Paginate with .range()
 // and advance by the actual returned length so we work regardless of the server cap.
@@ -62,6 +62,7 @@ export async function importSeason(parse: ParseResult, year: number, filename: s
   await supabase.from("coach_assignments").delete().eq("season_id", seasonId).eq("module", module);
   if (module === "national") {
     await supabase.from("continental_results").delete().eq("season_id", seasonId);
+    await supabase.from("international_results").delete().eq("season_id", seasonId);
   }
   await supabase.from("players").delete().eq("season_id", seasonId).eq("module", module);
 
@@ -130,6 +131,22 @@ export async function importSeason(parse: ParseResult, year: number, filename: s
     }));
     await chunkInsert("continental_results", contPayload);
   }
+
+  // 6b. International (national-team competitions)
+  if (module === "national" && parse.data.international.length) {
+    const intPayload = parse.data.international.map((c) => ({
+      season_id: seasonId,
+      competition: c.competition,
+      team1: c.team1,
+      team2: c.team2,
+      coach1: c.coach1,
+      coach2: c.coach2,
+      result: c.result,
+      winner: c.winner,
+    }));
+    await chunkInsert("international_results", intPayload);
+  }
+
 
   // 7. Coaches + assignments
   const uniqueCoaches = new Map<string, { name: string; nationality: string | null }>();
@@ -235,6 +252,7 @@ export async function deleteImport(row: ImportLogRow): Promise<void> {
   await supabase.from("coach_assignments").delete().eq("season_id", row.season_id).eq("module", row.module);
   if (row.module === "national") {
     await supabase.from("continental_results").delete().eq("season_id", row.season_id);
+    await supabase.from("international_results").delete().eq("season_id", row.season_id);
   }
   if (row.module === "superleague") {
     await supabase.from("players").delete().eq("season_id", row.season_id);
@@ -246,6 +264,7 @@ export interface AllData {
   seasons: { id: string; year: number }[];
   standings: StandingRow[];
   continental: ContinentalRow[];
+  international: InternationalRow[];
   coaches: CoachRow[];
   clubCountry: Record<string, string | null>;
   players: PlayerRow[];
@@ -280,8 +299,9 @@ export async function fetchAllData(): Promise<AllData> {
   clubsAll.forEach((c) => {
     clubCountry[c.name] = c.country_id ? countryById.get(c.country_id) ?? null : null;
   });
+  // Defer national-league country inference until after standings are loaded below.
 
-  const [standings, continental, coachAssign, playersRaw, clubIds, coachNat] = await Promise.all([
+  const [standings, continental, internationalRaw, coachAssign, playersRaw, clubIds, coachNat] = await Promise.all([
     fetchAllRows<Record<string, unknown>>(
       "standings",
       "season_id,module,division_num,division_label,position,club_name,is_champion,info,points,played",
@@ -289,6 +309,10 @@ export async function fetchAllData(): Promise<AllData> {
     fetchAllRows<Record<string, unknown>>(
       "continental_results",
       "season_id,competition,team1,team2,winner_club_id",
+    ),
+    fetchAllRows<Record<string, unknown>>(
+      "international_results",
+      "season_id,competition,team1,team2,coach1,coach2,winner",
     ),
     fetchAllRows<Record<string, unknown>>(
       "coach_assignments",
@@ -337,6 +361,26 @@ export async function fetchAllData(): Promise<AllData> {
       winner: c.winner_club_id ? clubIdName.get(c.winner_club_id) ?? null : null,
     };
   });
+  const internationalRows: InternationalRow[] = internationalRaw.map((row) => {
+    const c = row as {
+      season_id: string;
+      competition: string;
+      team1: string | null;
+      team2: string | null;
+      coach1: string | null;
+      coach2: string | null;
+      winner: string | null;
+    };
+    return {
+      season_year: seasonMap.get(c.season_id) ?? 0,
+      competition: c.competition,
+      team1: c.team1,
+      team2: c.team2,
+      coach1: c.coach1,
+      coach2: c.coach2,
+      winner: c.winner,
+    };
+  });
   const coachRows: CoachRow[] = coachAssign.map((row) => {
     const c = row as { season_id: string; module: CoachRow["module"]; coach_name: string; club_name: string | null };
     return {
@@ -371,10 +415,39 @@ export async function fetchAllData(): Promise<AllData> {
     };
   });
 
+  // Infer country for clubs in national leagues based on the dominant country
+  // of clubs already mapped within the same division_label. This makes national
+  // league results contribute to country rankings even when the imported file
+  // did not include explicit country mappings for those clubs.
+  const leagueCountryCount = new Map<string, Map<string, number>>();
+  for (const s of standingRows) {
+    if (s.module !== "national" || !s.division_label) continue;
+    const country = clubCountry[s.club_name];
+    if (!country) continue;
+    let inner = leagueCountryCount.get(s.division_label);
+    if (!inner) { inner = new Map(); leagueCountryCount.set(s.division_label, inner); }
+    inner.set(country, (inner.get(country) ?? 0) + 1);
+  }
+  const leagueCountry = new Map<string, string>();
+  for (const [label, counts] of leagueCountryCount) {
+    let best: string | null = null; let bestN = 0;
+    for (const [c, n] of counts) if (n > bestN) { best = c; bestN = n; }
+    if (best) leagueCountry.set(label, best);
+  }
+  for (const s of standingRows) {
+    if (s.module !== "national" || !s.division_label) continue;
+    if (clubCountry[s.club_name]) continue;
+    const inferred = leagueCountry.get(s.division_label);
+    if (inferred) clubCountry[s.club_name] = inferred;
+  }
+
   return {
+
+
     seasons: seasonsAll.map((s) => ({ id: s.id, year: s.year })),
     standings: standingRows,
     continental: continentalRows,
+    international: internationalRows,
     coaches: coachRows,
     clubCountry,
     players: playerRows,

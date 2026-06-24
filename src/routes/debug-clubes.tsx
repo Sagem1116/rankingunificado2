@@ -16,9 +16,47 @@ function DebugClubes() {
     return <div className="flex items-center gap-2 text-muted-foreground"><Loader2 className="size-4 animate-spin" /> A carregar…</div>;
   }
 
-  const { clubCountry, players, standings } = data.data;
+  const { clubCountry, players, standings, coaches } = data.data;
   const allClubs = Object.keys(clubCountry);
   const clubsWithoutCountry = allClubs.filter((c) => !clubCountry[c]).sort();
+
+  // Distinct (year, club) entries from standings without country associated
+  const noCountryRows: { year: number; club: string }[] = [];
+  {
+    const seen = new Set<string>();
+    for (const s of standings) {
+      if (!s.club_name || !s.season_year) continue;
+      if (clubCountry[s.club_name]) continue;
+      const k = `${s.season_year}|${s.club_name}`;
+      if (seen.has(k)) continue;
+      seen.add(k);
+      noCountryRows.push({ year: s.season_year, club: s.club_name });
+    }
+    noCountryRows.sort((a, b) => b.year - a.year || a.club.localeCompare(b.club));
+  }
+
+  // (year, club) entries where no coach is associated for that specific season
+  const seasonClubCoachesAll = new Map<string, Set<string>>();
+  for (const c of coaches ?? []) {
+    if (!c.club_name || !c.season_year) continue;
+    const k = `${c.season_year}|${c.club_name}`;
+    let s = seasonClubCoachesAll.get(k);
+    if (!s) { s = new Set(); seasonClubCoachesAll.set(k, s); }
+    if (c.name) s.add(c.name);
+  }
+  const noCoachRows: { year: number; club: string }[] = [];
+  {
+    const seen = new Set<string>();
+    for (const s of standings) {
+      if (!s.club_name || !s.season_year) continue;
+      const k = `${s.season_year}|${s.club_name}`;
+      if (seen.has(k)) continue;
+      seen.add(k);
+      const set = seasonClubCoachesAll.get(k);
+      if (!set || set.size === 0) noCoachRows.push({ year: s.season_year, club: s.club_name });
+    }
+    noCoachRows.sort((a, b) => b.year - a.year || a.club.localeCompare(b.club));
+  }
 
   // Players per club (latest available season for that club)
   const latestYear = players.length ? Math.max(...players.map((p) => p.season_year)) : 0;
@@ -34,6 +72,25 @@ function DebugClubes() {
   const clubsInStandings = new Set(standings.map((s) => s.club_name));
   const ghostClubs = [...clubsInStandings].filter((c) => !(c in clubCountry)).sort();
 
+
+
+  // Clubs with more than one distinct coach in the same season
+  const seasonClubCoaches = new Map<string, Set<string>>();
+  for (const c of coaches ?? []) {
+    if (!c.club_name || !c.name) continue;
+    const k = `${c.season_year}|${c.club_name}`;
+    let s = seasonClubCoaches.get(k);
+    if (!s) { s = new Set(); seasonClubCoaches.set(k, s); }
+    s.add(c.name);
+  }
+  const multiCoachRows: { year: number; club: string; coaches: string[] }[] = [];
+  for (const [k, set] of seasonClubCoaches) {
+    if (set.size <= 1) continue;
+    const [y, club] = k.split("|");
+    multiCoachRows.push({ year: Number(y), club, coaches: [...set].sort() });
+  }
+  multiCoachRows.sort((a, b) => b.year - a.year || a.club.localeCompare(b.club));
+
   const ranked = rankBy(data.ranks.clubs, "weighted");
   const rankedRaw = rankBy(data.ranks.clubs, "raw");
   const rankedTitles = [...data.ranks.clubs].sort((a, b) => b.titles - a.titles);
@@ -47,28 +104,122 @@ function DebugClubes() {
         <p className="text-muted-foreground text-sm mt-1">Diagnóstico de dados e rankings de clubes</p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-5">
         <Stat label="Clubes (totais)" value={allClubs.length} />
-        <Stat label="Sem país" value={clubsWithoutCountry.length} tone={clubsWithoutCountry.length ? "warn" : "ok"} />
+        <Stat label="(Época, Clube) sem país" value={noCountryRows.length} tone={noCountryRows.length ? "warn" : "ok"} />
+        <Stat label="(Época, Clube) sem treinador" value={noCoachRows.length} tone={noCoachRows.length ? "warn" : "ok"} />
+        <Stat label=">1 treinador / época" value={multiCoachRows.length} tone={multiCoachRows.length ? "warn" : "ok"} />
         <Stat label="Em standings, fora da tabela 'clubs'" value={ghostClubs.length} tone={ghostClubs.length ? "warn" : "ok"} />
       </div>
 
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
-            <AlertTriangle className="size-4 text-warning" /> Clubes sem país associado ({clubsWithoutCountry.length})
+            <AlertTriangle className="size-4 text-warning" /> Clubes sem país associado ({noCountryRows.length})
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {clubsWithoutCountry.length === 0 ? (
+          {noCountryRows.length === 0 ? (
             <p className="text-sm text-muted-foreground">Todos os clubes têm país associado.</p>
           ) : (
-            <div className="flex flex-wrap gap-2">
-              {clubsWithoutCountry.map((c) => (
-                <Link key={c} to="/clubes/$name" params={{ name: c }}>
-                  <Badge variant="outline" className="hover:bg-muted">{c}</Badge>
-                </Link>
-              ))}
+            <div className="overflow-x-auto max-h-[420px]">
+              <table className="w-full text-sm">
+                <thead className="text-xs uppercase text-muted-foreground border-b border-border sticky top-0 bg-background">
+                  <tr>
+                    <th className="text-left py-2 pr-3 w-20">Época</th>
+                    <th className="text-left py-2 pr-3">Clube</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {noCountryRows.map((r) => (
+                    <tr key={`${r.year}-${r.club}`} className="border-b border-border/40 hover:bg-muted/40">
+                      <td className="py-1.5 pr-3 tabular-nums">{r.year}</td>
+                      <td className="py-1.5 pr-3 font-medium">
+                        <Link to="/clubes/$name" params={{ name: r.club }} className="hover:text-primary">{r.club}</Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <AlertTriangle className="size-4 text-warning" /> Clubes sem treinador associado ({noCoachRows.length})
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {noCoachRows.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Todos os (época, clube) têm pelo menos um treinador associado.</p>
+          ) : (
+            <div className="overflow-x-auto max-h-[420px]">
+              <table className="w-full text-sm">
+                <thead className="text-xs uppercase text-muted-foreground border-b border-border sticky top-0 bg-background">
+                  <tr>
+                    <th className="text-left py-2 pr-3 w-20">Época</th>
+                    <th className="text-left py-2 pr-3">Clube</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {noCoachRows.map((r) => (
+                    <tr key={`${r.year}-${r.club}`} className="border-b border-border/40 hover:bg-muted/40">
+                      <td className="py-1.5 pr-3 tabular-nums">{r.year}</td>
+                      <td className="py-1.5 pr-3 font-medium">
+                        <Link to="/clubes/$name" params={{ name: r.club }} className="hover:text-primary">{r.club}</Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <AlertTriangle className="size-4 text-warning" /> Clubes com mais que um treinador na mesma época ({multiCoachRows.length})
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {multiCoachRows.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nenhum clube tem mais que um treinador na mesma época.</p>
+          ) : (
+            <div className="overflow-x-auto max-h-[420px]">
+              <table className="w-full text-sm">
+                <thead className="text-xs uppercase text-muted-foreground border-b border-border sticky top-0 bg-background">
+                  <tr>
+                    <th className="text-left py-2 pr-3 w-20">Época</th>
+                    <th className="text-left py-2 pr-3">Clube</th>
+                    <th className="text-left py-2 pr-3">Treinadores</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {multiCoachRows.map((r) => (
+                    <tr key={`${r.year}-${r.club}`} className="border-b border-border/40 hover:bg-muted/40">
+                      <td className="py-1.5 pr-3 tabular-nums">{r.year}</td>
+                      <td className="py-1.5 pr-3 font-medium">
+                        <Link to="/clubes/$name" params={{ name: r.club }} className="hover:text-primary">{r.club}</Link>
+                      </td>
+                      <td className="py-1.5 pr-3">
+                        <div className="flex flex-wrap gap-1.5">
+                          {r.coaches.map((c) => (
+                            <Link key={c} to="/treinadores/$name" params={{ name: c }}>
+                              <Badge variant="outline" className="hover:bg-muted">{c}</Badge>
+                            </Link>
+                          ))}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </CardContent>

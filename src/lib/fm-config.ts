@@ -4,6 +4,7 @@ import {
   DEFAULT_COMPETITION_WEIGHTS,
   DEFAULT_TITLE_WEIGHTS,
   DEFAULT_NATIONAL_LEAGUE_WEIGHTS,
+  DEFAULT_INTERNATIONAL_WEIGHTS,
   NATIONAL_CHAMPION_BONUS,
   SUPERLEAGUE_CHAMPION_BONUS,
 } from "./fm-defaults";
@@ -22,6 +23,7 @@ export interface FmConfig {
   competitionWeights: { national: number; continental: number; superleague: number };
   titleWeights: { match: string; label: string; weight: number }[];
   nationalLeagueWeights: { match: string; label: string; weight: number }[];
+  internationalWeights: { match: string; label: string; weight: number }[];
   nationalChampionBonus: number;
   superleagueChampionBonus: number;
   decayMultipliers: DecayMultipliers;
@@ -42,11 +44,13 @@ export const DEFAULT_CONFIG: FmConfig = {
   competitionWeights: { ...DEFAULT_COMPETITION_WEIGHTS },
   titleWeights: DEFAULT_TITLE_WEIGHTS.map((t) => ({ ...t })),
   nationalLeagueWeights: DEFAULT_NATIONAL_LEAGUE_WEIGHTS.map((t) => ({ ...t })),
+  internationalWeights: DEFAULT_INTERNATIONAL_WEIGHTS.map((t) => ({ ...t })),
   nationalChampionBonus: NATIONAL_CHAMPION_BONUS,
   superleagueChampionBonus: SUPERLEAGUE_CHAMPION_BONUS,
   decayMultipliers: { ...DEFAULT_DECAY },
   normalizePointsByGames: false,
 };
+
 
 export function cloneConfig(c: FmConfig): FmConfig {
   return {
@@ -55,6 +59,7 @@ export function cloneConfig(c: FmConfig): FmConfig {
     competitionWeights: { ...c.competitionWeights },
     titleWeights: c.titleWeights.map((t) => ({ ...t })),
     nationalLeagueWeights: c.nationalLeagueWeights.map((t) => ({ ...t })),
+    internationalWeights: c.internationalWeights.map((t) => ({ ...t })),
     nationalChampionBonus: c.nationalChampionBonus,
     superleagueChampionBonus: c.superleagueChampionBonus,
     decayMultipliers: { ...c.decayMultipliers },
@@ -95,6 +100,21 @@ export function cfgNationalLeagueWeight(cfg: FmConfig, leagueLabel: string | nul
   return 1;
 }
 
+export function cfgInternationalWeight(
+  cfg: FmConfig,
+  competition: string,
+): { label: string; weight: number } {
+  const n = competition
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+  for (const t of cfg.internationalWeights) {
+    if (t.match && n.includes(t.match)) return { label: t.label, weight: t.weight };
+  }
+  return { label: competition, weight: 150 };
+}
+
 export function cfgDecay(cfg: FmConfig, seasonYear: number, latestYear: number): number {
   const age = Math.max(0, latestYear - seasonYear);
   const d = cfg.decayMultipliers;
@@ -120,6 +140,7 @@ export function configToRows(profileId: string, cfg: FmConfig): ConfigRow[] {
   for (const [k, v] of Object.entries(cfg.competitionWeights)) rows.push({ profile_id: profileId, category: "competition", key: k, value: v });
   for (const t of cfg.titleWeights) rows.push({ profile_id: profileId, category: "title", key: `${t.match}\u0001${t.label}`, value: t.weight });
   for (const t of cfg.nationalLeagueWeights) rows.push({ profile_id: profileId, category: "national-league", key: `${t.match}\u0001${t.label}`, value: t.weight });
+  for (const t of cfg.internationalWeights) rows.push({ profile_id: profileId, category: "international", key: `${t.match}\u0001${t.label}`, value: t.weight });
   rows.push({ profile_id: profileId, category: "bonus", key: "national", value: cfg.nationalChampionBonus });
   rows.push({ profile_id: profileId, category: "bonus", key: "superleague", value: cfg.superleagueChampionBonus });
   rows.push({ profile_id: profileId, category: "decay", key: "last", value: cfg.decayMultipliers.last });
@@ -134,11 +155,13 @@ export function configToRows(profileId: string, cfg: FmConfig): ConfigRow[] {
 export function rowsToConfig(rows: { category: string; key: string; value: number }[]): FmConfig {
   const cfg = cloneConfig(DEFAULT_CONFIG);
   if (!rows.length) return cfg;
-  // titles & national-league are list-typed: reset before applying rows
+  // titles, national-league and international are list-typed: reset before applying rows
   const hasTitleRows = rows.some((r) => r.category === "title");
   const hasNLRows = rows.some((r) => r.category === "national-league");
+  const hasIntRows = rows.some((r) => r.category === "international");
   if (hasTitleRows) cfg.titleWeights = [];
   if (hasNLRows) cfg.nationalLeagueWeights = [];
+  if (hasIntRows) cfg.internationalWeights = [];
   for (const r of rows) {
     const v = Number(r.value);
     switch (r.category) {
@@ -161,6 +184,11 @@ export function rowsToConfig(rows: { category: string; key: string; value: numbe
       case "national-league": {
         const [match, label] = r.key.split("\u0001");
         cfg.nationalLeagueWeights.push({ match: match ?? "", label: label ?? match ?? "", weight: v });
+        break;
+      }
+      case "international": {
+        const [match, label] = r.key.split("\u0001");
+        cfg.internationalWeights.push({ match: match ?? "", label: label ?? match ?? "", weight: v });
         break;
       }
       case "bonus":

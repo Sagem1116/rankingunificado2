@@ -15,6 +15,7 @@ import { Route as RankingHistoricoRouteImport } from './routes/ranking-historico
 import { Route as PaisesRouteImport } from './routes/paises'
 import { Route as ImportarRouteImport } from './routes/importar'
 import { Route as HallOfFameRouteImport } from './routes/hall-of-fame'
+import { Route as DominioRouteImport } from './routes/dominio'
 import { Route as DebugTreinadoresRouteImport } from './routes/debug-treinadores'
 import { Route as DebugPontosRouteImport } from './routes/debug-pontos'
 import { Route as DebugJogadoresRouteImport } from './routes/debug-jogadores'
@@ -39,6 +40,7 @@ import { Route as SuperLeagueCampeoesRouteImport } from './routes/super-league.c
 import { Route as SuperLeagueAssistenciasRouteImport } from './routes/super-league.assistencias'
 import { Route as PaisesNameRouteImport } from './routes/paises.$name'
 import { Route as NationalJogadoresLigasRouteImport } from './routes/national.jogadores-ligas'
+import { Route as LigasNameRouteImport } from './routes/ligas.$name'
 import { Route as JogadoresNameRouteImport } from './routes/jogadores.$name'
 import { Route as ClubesNameRouteImport } from './routes/clubes.$name'
 
@@ -70,6 +72,11 @@ const ImportarRoute = ImportarRouteImport.update({
 const HallOfFameRoute = HallOfFameRouteImport.update({
   id: '/hall-of-fame',
   path: '/hall-of-fame',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DominioRoute = DominioRouteImport.update({
+  id: '/dominio',
+  path: '/dominio',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DebugTreinadoresRoute = DebugTreinadoresRouteImport.update({
@@ -197,6 +204,11 @@ const NationalJogadoresLigasRoute = NationalJogadoresLigasRouteImport.update({
   path: '/national/jogadores-ligas',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LigasNameRoute = LigasNameRouteImport.update({
+  id: '/ligas/$name',
+  path: '/ligas/$name',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const JogadoresNameRoute = JogadoresNameRouteImport.update({
   id: '/jogadores/$name',
   path: '/jogadores/$name',
@@ -218,6 +230,7 @@ export interface FileRoutesByFullPath {
   '/debug-jogadores': typeof DebugJogadoresRoute
   '/debug-pontos': typeof DebugPontosRoute
   '/debug-treinadores': typeof DebugTreinadoresRoute
+  '/dominio': typeof DominioRoute
   '/hall-of-fame': typeof HallOfFameRoute
   '/importar': typeof ImportarRoute
   '/paises': typeof PaisesRouteWithChildren
@@ -226,6 +239,7 @@ export interface FileRoutesByFullPath {
   '/treinadores': typeof TreinadoresRouteWithChildren
   '/clubes/$name': typeof ClubesNameRoute
   '/jogadores/$name': typeof JogadoresNameRoute
+  '/ligas/$name': typeof LigasNameRoute
   '/national/jogadores-ligas': typeof NationalJogadoresLigasRoute
   '/paises/$name': typeof PaisesNameRoute
   '/super-league/assistencias': typeof SuperLeagueAssistenciasRoute
@@ -251,12 +265,14 @@ export interface FileRoutesByTo {
   '/debug-jogadores': typeof DebugJogadoresRoute
   '/debug-pontos': typeof DebugPontosRoute
   '/debug-treinadores': typeof DebugTreinadoresRoute
+  '/dominio': typeof DominioRoute
   '/hall-of-fame': typeof HallOfFameRoute
   '/importar': typeof ImportarRoute
   '/ranking-historico': typeof RankingHistoricoRoute
   '/rankings': typeof RankingsRoute
   '/clubes/$name': typeof ClubesNameRoute
   '/jogadores/$name': typeof JogadoresNameRoute
+  '/ligas/$name': typeof LigasNameRoute
   '/national/jogadores-ligas': typeof NationalJogadoresLigasRoute
   '/paises/$name': typeof PaisesNameRoute
   '/super-league/assistencias': typeof SuperLeagueAssistenciasRoute
@@ -284,6 +300,7 @@ export interface FileRoutesById {
   '/debug-jogadores': typeof DebugJogadoresRoute
   '/debug-pontos': typeof DebugPontosRoute
   '/debug-treinadores': typeof DebugTreinadoresRoute
+  '/dominio': typeof DominioRoute
   '/hall-of-fame': typeof HallOfFameRoute
   '/importar': typeof ImportarRoute
   '/paises': typeof PaisesRouteWithChildren
@@ -292,6 +309,7 @@ export interface FileRoutesById {
   '/treinadores': typeof TreinadoresRouteWithChildren
   '/clubes/$name': typeof ClubesNameRoute
   '/jogadores/$name': typeof JogadoresNameRoute
+  '/ligas/$name': typeof LigasNameRoute
   '/national/jogadores-ligas': typeof NationalJogadoresLigasRoute
   '/paises/$name': typeof PaisesNameRoute
   '/super-league/assistencias': typeof SuperLeagueAssistenciasRoute
@@ -320,6 +338,7 @@ export interface FileRouteTypes {
     | '/debug-jogadores'
     | '/debug-pontos'
     | '/debug-treinadores'
+    | '/dominio'
     | '/hall-of-fame'
     | '/importar'
     | '/paises'
@@ -328,6 +347,7 @@ export interface FileRouteTypes {
     | '/treinadores'
     | '/clubes/$name'
     | '/jogadores/$name'
+    | '/ligas/$name'
     | '/national/jogadores-ligas'
     | '/paises/$name'
     | '/super-league/assistencias'
@@ -353,12 +373,14 @@ export interface FileRouteTypes {
     | '/debug-jogadores'
     | '/debug-pontos'
     | '/debug-treinadores'
+    | '/dominio'
     | '/hall-of-fame'
     | '/importar'
     | '/ranking-historico'
     | '/rankings'
     | '/clubes/$name'
     | '/jogadores/$name'
+    | '/ligas/$name'
     | '/national/jogadores-ligas'
     | '/paises/$name'
     | '/super-league/assistencias'
@@ -385,6 +407,7 @@ export interface FileRouteTypes {
     | '/debug-jogadores'
     | '/debug-pontos'
     | '/debug-treinadores'
+    | '/dominio'
     | '/hall-of-fame'
     | '/importar'
     | '/paises'
@@ -393,6 +416,7 @@ export interface FileRouteTypes {
     | '/treinadores'
     | '/clubes/$name'
     | '/jogadores/$name'
+    | '/ligas/$name'
     | '/national/jogadores-ligas'
     | '/paises/$name'
     | '/super-league/assistencias'
@@ -420,6 +444,7 @@ export interface RootRouteChildren {
   DebugJogadoresRoute: typeof DebugJogadoresRoute
   DebugPontosRoute: typeof DebugPontosRoute
   DebugTreinadoresRoute: typeof DebugTreinadoresRoute
+  DominioRoute: typeof DominioRoute
   HallOfFameRoute: typeof HallOfFameRoute
   ImportarRoute: typeof ImportarRoute
   PaisesRoute: typeof PaisesRouteWithChildren
@@ -427,6 +452,7 @@ export interface RootRouteChildren {
   RankingsRoute: typeof RankingsRoute
   TreinadoresRoute: typeof TreinadoresRouteWithChildren
   JogadoresNameRoute: typeof JogadoresNameRoute
+  LigasNameRoute: typeof LigasNameRoute
   NationalJogadoresLigasRoute: typeof NationalJogadoresLigasRoute
   SuperLeagueAssistenciasRoute: typeof SuperLeagueAssistenciasRoute
   SuperLeagueCampeoesRoute: typeof SuperLeagueCampeoesRoute
@@ -481,6 +507,13 @@ declare module '@tanstack/react-router' {
       path: '/hall-of-fame'
       fullPath: '/hall-of-fame'
       preLoaderRoute: typeof HallOfFameRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dominio': {
+      id: '/dominio'
+      path: '/dominio'
+      fullPath: '/dominio'
+      preLoaderRoute: typeof DominioRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/debug-treinadores': {
@@ -651,6 +684,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NationalJogadoresLigasRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/ligas/$name': {
+      id: '/ligas/$name'
+      path: '/ligas/$name'
+      fullPath: '/ligas/$name'
+      preLoaderRoute: typeof LigasNameRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/jogadores/$name': {
       id: '/jogadores/$name'
       path: '/jogadores/$name'
@@ -718,6 +758,7 @@ const rootRouteChildren: RootRouteChildren = {
   DebugJogadoresRoute: DebugJogadoresRoute,
   DebugPontosRoute: DebugPontosRoute,
   DebugTreinadoresRoute: DebugTreinadoresRoute,
+  DominioRoute: DominioRoute,
   HallOfFameRoute: HallOfFameRoute,
   ImportarRoute: ImportarRoute,
   PaisesRoute: PaisesRouteWithChildren,
@@ -725,6 +766,7 @@ const rootRouteChildren: RootRouteChildren = {
   RankingsRoute: RankingsRoute,
   TreinadoresRoute: TreinadoresRouteWithChildren,
   JogadoresNameRoute: JogadoresNameRoute,
+  LigasNameRoute: LigasNameRoute,
   NationalJogadoresLigasRoute: NationalJogadoresLigasRoute,
   SuperLeagueAssistenciasRoute: SuperLeagueAssistenciasRoute,
   SuperLeagueCampeoesRoute: SuperLeagueCampeoesRoute,

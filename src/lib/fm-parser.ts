@@ -41,6 +41,16 @@ export interface ParsedContinental {
   winner: string | null;
 }
 
+export interface ParsedInternational {
+  competition: string;
+  team1: string | null;
+  team2: string | null;
+  coach1: string | null;
+  coach2: string | null;
+  result: string | null;
+  winner: string | null;
+}
+
 export interface ParsedPlayer {
   idu: string | null;
   name: string;
@@ -65,6 +75,7 @@ export interface ParsedData {
   standings: ParsedStanding[];
   coaches: ParsedCoach[];
   continental: ParsedContinental[];
+  international: ParsedInternational[];
   players: ParsedPlayer[];
 }
 
@@ -163,7 +174,7 @@ export function parseWorkbook(buffer: ArrayBuffer, filename = ""): ParseResult {
   } catch {
     return {
       kind: "national",
-      data: { teamCountry: [], divisionWeights: [], standings: [], coaches: [], continental: [], players: [] },
+      data: { teamCountry: [], divisionWeights: [], standings: [], coaches: [], continental: [], international: [], players: [] },
       messages: [{ level: "red", text: "✖ Ficheiro corrompido ou ilegível" }],
       blocked: true,
     };
@@ -175,7 +186,7 @@ export function parseWorkbook(buffer: ArrayBuffer, filename = ""): ParseResult {
     divisionWeights: [],
     standings: [],
     coaches: [],
-    continental: [],
+    continental: [], international: [],
     players: [],
   };
 
@@ -246,7 +257,39 @@ export function parseWorkbook(buffer: ArrayBuffer, filename = ""): ParseResult {
         }
       }
     }
+
+    // --- Compts Seleções (international national-team competitions) ---
+    const ci = sheetRows(wb, "Compts Seleções") ?? sheetRows(wb, "Compts Selecoes");
+    if (ci && ci.length) {
+      const compCol = findCol(ci[0], ["Competição", "Competicao", "Competition"]);
+      const t1Col = findCol(ci[0], ["Equipa 1", "Equipa1", "Seleção 1", "Selecao 1"]);
+      const c1Col = findCol(ci[0], ["Treinador 1", "Treinador1", "Coach 1"]);
+      const resCol = findCol(ci[0], ["Resultado", "Result"]);
+      const t2Col = findCol(ci[0], ["Equipa 2", "Equipa2", "Seleção 2", "Selecao 2"]);
+      const c2Col = findCol(ci[0], ["Treinador 2", "Treinador2", "Coach 2"]);
+      if (compCol) {
+        for (const r of ci) {
+          const competition = String(r[compCol] ?? "").trim();
+          if (!competition) continue;
+          const team1 = t1Col ? (String(r[t1Col] ?? "").trim() || null) : null;
+          const team2 = t2Col ? (String(r[t2Col] ?? "").trim() || null) : null;
+          const coach1 = c1Col ? (String(r[c1Col] ?? "").trim() || null) : null;
+          const coach2 = c2Col ? (String(r[c2Col] ?? "").trim() || null) : null;
+          const result = resCol ? (String(r[resCol] ?? "").trim() || null) : null;
+          data.international.push({
+            competition,
+            team1,
+            team2,
+            coach1,
+            coach2,
+            result,
+            winner: parseScore(result, team1, team2),
+          });
+        }
+      }
+    }
   }
+
 
   // --- Treinadores ---
   const tr = sheetRows(wb, "Treinadores");

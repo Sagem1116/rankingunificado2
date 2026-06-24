@@ -4,6 +4,7 @@ import {
   cfgDivisionWeight,
   cfgTitleWeight,
   cfgNationalLeagueWeight,
+  cfgInternationalWeight,
   cfgDecay,
   type FmConfig,
 } from "./fm-config";
@@ -32,6 +33,16 @@ export interface ContinentalRow {
   competition: string;
   team1: string | null;
   team2: string | null;
+  winner: string | null;
+}
+
+export interface InternationalRow {
+  season_year: number;
+  competition: string;
+  team1: string | null;
+  team2: string | null;
+  coach1: string | null;
+  coach2: string | null;
   winner: string | null;
 }
 
@@ -145,8 +156,11 @@ export function computeRankings(input: ComputeInput, config: FmConfig = DEFAULT_
 
   const recordItem = (season: number, module: StandingRow["module"], club: string, item: BreakdownItem) => {
     pushBD(bdClubs, club, item);
-    const country = input.clubCountry[club];
-    if (country) pushBD(bdCountries, country, item);
+    // National leagues do NOT contribute to country rankings.
+    if (module !== "national") {
+      const country = input.clubCountry[club];
+      if (country) pushBD(bdCountries, country, item);
+    }
     const k = `${season}|${module}|${club}`;
     (clubSeasonItems[k] ??= []).push(item);
   };
@@ -177,10 +191,12 @@ export function computeRankings(input: ComputeInput, config: FmConfig = DEFAULT_
       add(clubs, s.club_name, base, w);
       bump(s.season_year, s.module, s.club_name, base, w);
       bumpEvo(evoClubs, s.club_name, s.season_year, w);
-      const country = input.clubCountry[s.club_name];
-      if (country) {
-        add(countries, country, base, w);
-        bumpEvo(evoCountries, country, s.season_year, w);
+      if (s.module !== "national") {
+        const country = input.clubCountry[s.club_name];
+        if (country) {
+          add(countries, country, base, w);
+          bumpEvo(evoCountries, country, s.season_year, w);
+        }
       }
       recordItem(s.season_year, s.module, s.club_name, {
         season_year: s.season_year,
@@ -207,10 +223,12 @@ export function computeRankings(input: ComputeInput, config: FmConfig = DEFAULT_
       add(clubs, s.club_name, leaguePts, w);
       bump(s.season_year, s.module, s.club_name, leaguePts, w);
       bumpEvo(evoClubs, s.club_name, s.season_year, w);
-      const country = input.clubCountry[s.club_name];
-      if (country) {
-        add(countries, country, leaguePts, w);
-        bumpEvo(evoCountries, country, s.season_year, w);
+      if (s.module !== "national") {
+        const country = input.clubCountry[s.club_name];
+        if (country) {
+          add(countries, country, leaguePts, w);
+          bumpEvo(evoCountries, country, s.season_year, w);
+        }
       }
       recordItem(s.season_year, s.module, s.club_name, {
         season_year: s.season_year,
@@ -237,10 +255,12 @@ export function computeRankings(input: ComputeInput, config: FmConfig = DEFAULT_
       add(clubs, s.club_name, rawB, w, 1);
       bump(s.season_year, s.module, s.club_name, rawB, w, 1);
       bumpEvo(evoClubs, s.club_name, s.season_year, w);
-      const country = input.clubCountry[s.club_name];
-      if (country) {
-        add(countries, country, rawB, w, 1);
-        bumpEvo(evoCountries, country, s.season_year, w);
+      if (s.module !== "national") {
+        const country = input.clubCountry[s.club_name];
+        if (country) {
+          add(countries, country, rawB, w, 1);
+          bumpEvo(evoCountries, country, s.season_year, w);
+        }
       }
       recordItem(s.season_year, s.module, s.club_name, {
         season_year: s.season_year,
@@ -358,3 +378,98 @@ export function computeRankings(input: ComputeInput, config: FmConfig = DEFAULT_
 export function rankBy(entries: RankingEntry[], mode: "raw" | "weighted"): RankingEntry[] {
   return [...entries].sort((a, b) => (mode === "raw" ? b.raw - a.raw : b.weighted - a.weighted));
 }
+
+// =============================================================
+// International (national-team) rankings — for the "Internacional" tab.
+// Selections are treated as countries; coaches are credited per game.
+// =============================================================
+export interface InternationalResult {
+  countries: RankingEntry[];
+  coaches: RankingEntry[];
+  evolution: {
+    countries: Record<string, Record<number, number>>;
+    coaches: Record<string, Record<number, number>>;
+  };
+  breakdown: {
+    countries: Record<string, BreakdownItem[]>;
+    coaches: Record<string, BreakdownItem[]>;
+  };
+  years: number[];
+}
+
+export function computeInternationalRankings(
+  rows: InternationalRow[],
+  config: FmConfig = DEFAULT_CONFIG,
+): InternationalResult {
+  const countries = new Map<string, RankingEntry>();
+  const coaches = new Map<string, RankingEntry>();
+  const evoCountries: Record<string, Record<number, number>> = {};
+  const evoCoaches: Record<string, Record<number, number>> = {};
+  const bdCountries: Record<string, BreakdownItem[]> = {};
+  const bdCoaches: Record<string, BreakdownItem[]> = {};
+
+  const yearsAll = rows.map((r) => r.season_year).filter((y) => y > 0);
+  const latestYear = yearsAll.length ? Math.max(...yearsAll) : 0;
+  const years = [...new Set(yearsAll)].sort((a, b) => a - b);
+
+  for (const r of rows) {
+    const { weight, label } = cfgInternationalWeight(config, r.competition);
+    const decay = cfgDecay(config, r.season_year, latestYear);
+    const mult = { compW: 1, divW: 1, decay };
+
+    if (r.winner) {
+      const w = weight * decay;
+      add(countries, r.winner, 200, w, 1);
+      bumpEvo(evoCountries, r.winner, r.season_year, w);
+      const item: BreakdownItem = {
+        season_year: r.season_year,
+        module: "continental",
+        source: "continental-win",
+        detail: `Vencedor ${label} (${r.competition}) · ${r.winner}`,
+        raw: 200,
+        weighted: w,
+        multipliers: mult,
+      };
+      pushBD(bdCountries, r.winner, item);
+      const winnerCoach = r.winner === r.team1 ? r.coach1 : r.coach2;
+      if (winnerCoach) {
+        add(coaches, winnerCoach, 200, w, 1);
+        bumpEvo(evoCoaches, winnerCoach, r.season_year, w);
+        pushBD(bdCoaches, winnerCoach, item);
+      }
+    }
+
+    const loser = r.winner === r.team1 ? r.team2 : r.team1;
+    const loserCoach = r.winner === r.team1 ? r.coach2 : r.coach1;
+    if (loser) {
+      const w = weight * decay * 0.3;
+      add(countries, loser, 50, w, 0);
+      bumpEvo(evoCountries, loser, r.season_year, w);
+      const item: BreakdownItem = {
+        season_year: r.season_year,
+        module: "continental",
+        source: "continental-loss",
+        detail: `Finalista vencido ${label} (${r.competition}) · ${loser}`,
+        raw: 50,
+        weighted: w,
+        multipliers: mult,
+      };
+      pushBD(bdCountries, loser, item);
+      if (loserCoach) {
+        add(coaches, loserCoach, 50, w, 0);
+        bumpEvo(evoCoaches, loserCoach, r.season_year, w);
+        pushBD(bdCoaches, loserCoach, item);
+      }
+    }
+  }
+
+  const sortW = (a: RankingEntry, b: RankingEntry) => b.weighted - a.weighted;
+  return {
+    countries: [...countries.values()].sort(sortW),
+    coaches: [...coaches.values()].sort(sortW),
+    evolution: { countries: evoCountries, coaches: evoCoaches },
+    breakdown: { countries: bdCountries, coaches: bdCoaches },
+    years,
+  };
+}
+

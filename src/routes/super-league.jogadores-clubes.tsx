@@ -1,7 +1,9 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { Loader2, Users } from "lucide-react";
+import { Loader2, Users, Search, X } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { useRankings } from "@/lib/useRankings";
 import { computeClubAggregates, listPlayerYears, type ClubAgg } from "@/lib/fm-players";
 import { SuperLeagueHeader } from "@/components/SuperLeagueHeader";
@@ -39,10 +41,36 @@ function Page() {
     [data, year],
   );
   const [sort, setSort] = useState<Key>("ca");
-  const sorted = useMemo(() => [...rows].sort((a, b) => b[sort] - a[sort]), [rows, sort]);
+  const [search, setSearch] = useState("");
+  const [leagueFilter, setLeagueFilter] = useState<string>("all");
+  const [divFilter, setDivFilter] = useState<string>("all");
+
+  const leagueOptions = useMemo(
+    () => Array.from(new Set(rows.map((r) => r.league).filter(Boolean))).sort() as string[],
+    [rows],
+  );
+  const divOptions = useMemo(
+    () => Array.from(new Set(rows.map((r) => r.division).filter((d) => d != null))).sort((a, b) => Number(a) - Number(b)) as number[],
+    [rows],
+  );
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return rows.filter((r) => {
+      if (q && !r.club.toLowerCase().includes(q)) return false;
+      if (leagueFilter !== "all" && r.league !== leagueFilter) return false;
+      if (divFilter !== "all" && String(r.division) !== divFilter) return false;
+      return true;
+    });
+  }, [rows, search, leagueFilter, divFilter]);
+
+  const sorted = useMemo(() => [...filtered].sort((a, b) => b[sort] - a[sort]), [filtered, sort]);
 
   if (isLoading) return <div className="flex items-center justify-center py-32 text-muted-foreground"><Loader2 className="size-6 animate-spin mr-2" /> A calcular…</div>;
   if (!rows.length) return <p className="text-muted-foreground">Sem dados de jogadores. Importa um ficheiro da Super League com a folha "Jogadores".</p>;
+
+  const clearFilters = () => { setSearch(""); setLeagueFilter("all"); setDivFilter("all"); };
+  const hasFilters = search || leagueFilter !== "all" || divFilter !== "all";
 
   return (
     <div className="space-y-6">
@@ -51,9 +79,40 @@ function Page() {
         title="Jogadores por Clube"
         description="Para cada clube da Super League, médias de Reputação Atual (R.A.), Reputação Mundial (R.M.), Capacidade Atual (C.A.) e Potencial (C.P.) dos 28 melhores jogadores, idade média do plantel, e soma de salários e valor de plantel. Filtra por época ou vê o agregado total."
       />
-      <div className="flex items-center gap-3">
-        <span className="text-sm text-muted-foreground">Filtrar:</span>
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="text-sm text-muted-foreground">Filtros:</span>
         <SeasonFilter value={year} onChange={setYear} years={years} />
+        <div className="relative">
+          <Search className="absolute left-2 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Procurar clube…"
+            className="h-9 w-48 pl-7"
+          />
+        </div>
+        <select
+          value={leagueFilter}
+          onChange={(e) => setLeagueFilter(e.target.value)}
+          className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+        >
+          <option value="all">Todas as ligas</option>
+          {leagueOptions.map((l) => <option key={l} value={l}>{l}</option>)}
+        </select>
+        <select
+          value={divFilter}
+          onChange={(e) => setDivFilter(e.target.value)}
+          className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+        >
+          <option value="all">Todas as divisões</option>
+          {divOptions.map((d) => <option key={d} value={String(d)}>Div. {d}</option>)}
+        </select>
+        {hasFilters && (
+          <Button variant="ghost" size="sm" onClick={clearFilters} className="h-9">
+            <X className="size-3.5" /> Limpar
+          </Button>
+        )}
+        <span className="text-xs text-muted-foreground ml-auto">{sorted.length} de {rows.length}</span>
       </div>
       <Card>
         <CardContent className="p-0 overflow-x-auto">
@@ -75,9 +134,19 @@ function Page() {
               {sorted.map((r, i) => (
                 <tr key={r.club} className="border-b border-border/50 hover:bg-muted/50">
                   <td className={`p-3 font-bold ${i < 3 ? "text-gold" : "text-muted-foreground"}`}>{i + 1}</td>
-                  <td className="p-3 font-medium">{r.club}</td>
-                  <td className="p-3 text-muted-foreground">{r.league || "—"}</td>
-                  <td className="p-3 text-right tabular-nums">{r.division ?? "—"}</td>
+                  <td className="p-3 font-medium">
+                    <Link to="/clubes/$name" params={{ name: r.club }} className="hover:text-primary">{r.club}</Link>
+                  </td>
+                  <td className="p-3 text-muted-foreground">
+                    {r.league ? (
+                      <Link to="/ligas/$name" params={{ name: r.league }} className="hover:text-primary">{r.league}</Link>
+                    ) : "—"}
+                  </td>
+                  <td className="p-3 text-right tabular-nums">
+                    {r.division != null ? (
+                      <Link to="/ligas/$name" params={{ name: `Div. ${r.division}` }} className="hover:text-primary">{r.division}</Link>
+                    ) : "—"}
+                  </td>
                   {COLS.map((c) => (
                     <td key={c.key} className="p-3 text-right tabular-nums">{c.money ? fmt(r[c.key]) : r[c.key]}</td>
                   ))}
@@ -90,3 +159,4 @@ function Page() {
     </div>
   );
 }
+

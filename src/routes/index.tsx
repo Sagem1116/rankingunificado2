@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { Shield, Users, Globe2, Trophy, UploadCloud, Loader2, Crown, Clock } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,10 +38,12 @@ function useLastImport() {
 }
 
 function Index() {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
   const { data, isLoading } = useRankings();
   const { data: lastImport } = useLastImport();
 
-  if (isLoading) {
+  if (!mounted || isLoading) {
     return (
       <div className="flex items-center justify-center py-32 text-muted-foreground">
         <Loader2 className="size-6 animate-spin mr-2" /> A calcular rankings…

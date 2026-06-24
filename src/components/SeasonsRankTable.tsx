@@ -118,7 +118,7 @@ export function SeasonsRankTable({
     for (const ec of extraCols ?? []) m[ec.key] = ec.values;
     return m;
   }, [extraCols]);
-  const { sorted: sortedAll, sortKey, setSortKey } = useEntrySort(entries, mode, extrasMap);
+  const { sorted: sortedAll, sortKey, setSortKey } = useEntrySort(entries, mode, extrasMap, evolution);
 
   const [query, setQuery] = useState("");
   const filtered = useMemo(() => {
@@ -237,7 +237,12 @@ export function SeasonsRankTable({
             </HeaderCell>
             <HeaderCell className="text-right" >Δ vs anterior</HeaderCell>
             {years.map((y) => (
-              <HeaderCell key={y} className="text-right font-medium tabular-nums">
+              <HeaderCell
+                key={y}
+                className="text-right font-medium tabular-nums"
+                onClick={() => setSortKey(`year:${y}`)}
+                active={sortKey === `year:${y}`}
+              >
                 {y}
               </HeaderCell>
             ))}
@@ -342,16 +347,34 @@ export function SeasonsRankTable({
                       </div>
                     );
                     if (!v || yearItems.length === 0) return <div key={y}>{cell}</div>;
-                    // Group lines by club+division for compactness
-                    const seen = new Set<string>();
-                    const lines: string[] = [];
+                    // Build lines: aggregate raw/weighted points per club/division.
+                    type Line = { text: string; raw: number; weighted: number };
+                    const groups = new Map<string, Line>();
                     for (const it of yearItems) {
+                      if (it.module === "continental") {
+                        const key = `c|${it.detail}`;
+                        const existing = groups.get(key);
+                        if (existing) {
+                          existing.raw += it.raw;
+                          existing.weighted += it.weighted;
+                        } else {
+                          groups.set(key, { text: it.detail, raw: it.raw, weighted: it.weighted });
+                        }
+                        continue;
+                      }
                       const club = kind === "clubes" ? e.name : extractClub(it.detail) ?? "—";
-                      const key = `${club}|${divisionText(it)}`;
-                      if (seen.has(key)) continue;
-                      seen.add(key);
-                      lines.push(kind === "clubes" ? divisionText(it) : `${club} · ${divisionText(it)}`);
+                      const div = divisionText(it);
+                      const key = `${club}|${div}`;
+                      const text = kind === "clubes" ? div : `${club} · ${div}`;
+                      const existing = groups.get(key);
+                      if (existing) {
+                        existing.raw += it.raw;
+                        existing.weighted += it.weighted;
+                      } else {
+                        groups.set(key, { text, raw: it.raw, weighted: it.weighted });
+                      }
                     }
+                    const lines = [...groups.values()];
                     return (
                       <Tooltip key={y}>
                         <TooltipTrigger asChild>
@@ -362,7 +385,13 @@ export function SeasonsRankTable({
                         <TooltipContent className="max-w-xs">
                           <div className="space-y-1 text-xs">
                             {lines.map((l, idx) => (
-                              <div key={idx}>{l}</div>
+                              <div key={idx}>
+                                {l.text}
+                                <span className="text-muted-foreground">
+                                  {" · "}Bruto {Math.round(l.raw).toLocaleString("pt-PT")}
+                                  {" · "}Ponderado {Math.round(l.weighted).toLocaleString("pt-PT")}
+                                </span>
+                              </div>
                             ))}
                           </div>
                         </TooltipContent>

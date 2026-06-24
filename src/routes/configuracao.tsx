@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Loader2, Settings, Save, Plus, Check, Trash2, RotateCcw, Download, Upload } from "lucide-react";
+import { Loader2, Settings, Save, Plus, Check, Trash2, RotateCcw, Download, Upload, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -158,7 +158,8 @@ function ConfigPage() {
         if (parsed.divisionWeights) merged.divisionWeights = { ...parsed.divisionWeights };
         if (parsed.competitionWeights) merged.competitionWeights = { ...merged.competitionWeights, ...parsed.competitionWeights };
         if (Array.isArray(parsed.titleWeights)) merged.titleWeights = parsed.titleWeights.map((t: { match?: string; label?: string; weight?: number }) => ({ match: t.match ?? "", label: t.label ?? "", weight: Number(t.weight) || 0 }));
-        if (Array.isArray(parsed.nationalLeagueWeights)) merged.nationalLeagueWeights = parsed.nationalLeagueWeights.map((t: { match?: string; label?: string; weight?: number }) => ({ match: t.match ?? "", label: t.label ?? "", weight: Number(t.weight) || 1 }));
+       if (Array.isArray(parsed.nationalLeagueWeights)) merged.nationalLeagueWeights = parsed.nationalLeagueWeights.map((t: { match?: string; label?: string; weight?: number }) => ({ match: t.match ?? "", label: t.label ?? "", weight: Number(t.weight) || 1 }));
+       if (Array.isArray(parsed.internationalWeights)) merged.internationalWeights = parsed.internationalWeights.map((t: { match?: string; label?: string; weight?: number }) => ({ match: t.match ?? "", label: t.label ?? "", weight: Number(t.weight) || 0 }));
         if (typeof parsed.nationalChampionBonus === "number") merged.nationalChampionBonus = parsed.nationalChampionBonus;
         if (typeof parsed.superleagueChampionBonus === "number") merged.superleagueChampionBonus = parsed.superleagueChampionBonus;
         if (parsed.decayMultipliers) merged.decayMultipliers = { ...merged.decayMultipliers, ...parsed.decayMultipliers };
@@ -223,6 +224,16 @@ function ConfigPage() {
           </Button>
           <Button variant="outline" onClick={() => setCfg(cloneConfig(DEFAULT_CONFIG))}>
             <RotateCcw className="size-4" /> Repor padrão
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => {
+              qc.invalidateQueries({ queryKey: ["fm-all-data"] });
+              qc.invalidateQueries({ queryKey: ["fm-config"] });
+              toast.success("A recalcular rankings com a configuração atual…");
+            }}
+          >
+            <RefreshCw className="size-4" /> Recalcular rankings
           </Button>
           <Button onClick={handleSave} disabled={saving}>
             {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />} Guardar
@@ -410,7 +421,49 @@ function ConfigPage() {
             </div>
           </AccordionContent>
         </AccordionItem>
+
+        <AccordionItem value="intlcomps" className="border rounded-lg px-4">
+          <AccordionTrigger>Pesos de competições Internacionais (Seleções)</AccordionTrigger>
+          <AccordionContent>
+            <div className="space-y-3 pb-2">
+              <p className="text-xs text-muted-foreground">
+                Peso base atribuído a cada competição de seleções (folha <em>Compts Seleções</em>).
+                O nome é comparado (sem acentos/maiúsculas) com a coluna <em>Competição</em>.
+                Competições sem entrada nesta lista usam peso padrão 150.
+                A pontuação final = peso × decaimento por época. O vencedor ganha 200 base × peso; o finalista perdedor 50 base × peso × 0.3.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {cfg.internationalWeights.map((t, i) => (
+                  <div key={i} className="flex items-end gap-2 rounded-lg border border-border p-2">
+                    <div className="flex-1 space-y-1">
+                      <Label className="text-xs text-muted-foreground">Nome da competição</Label>
+                      <Input
+                        value={t.label}
+                        onChange={(e) => upd((c) => {
+                          c.internationalWeights[i].label = e.target.value;
+                          c.internationalWeights[i].match = e.target.value
+                            .normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+                        })}
+                        className="h-9"
+                      />
+                    </div>
+                    <div className="w-24">
+                      <NumField label="Peso base" value={t.weight} onChange={(v) => upd((c) => { c.internationalWeights[i].weight = v; })} />
+                    </div>
+                    <Button size="icon" variant="ghost" className="shrink-0" onClick={() => upd((c) => { c.internationalWeights.splice(i, 1); })}>
+                      <Trash2 className="size-4 text-destructive" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+              <Button variant="outline" size="sm" onClick={() => upd((c) => { c.internationalWeights.push({ match: "", label: "Nova competição", weight: 150 }); })}>
+                <Plus className="size-4" /> Adicionar competição internacional
+              </Button>
+            </div>
+          </AccordionContent>
+        </AccordionItem>
       </Accordion>
+
 
       <Card className="border-destructive/40">
         <CardHeader>
